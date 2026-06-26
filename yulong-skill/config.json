@@ -1,0 +1,7 @@
+{
+  "baseUrl": "http://192.168.11.150:9099/pubinfo-hr",
+  "timeout": 30,
+  "userDbPath": "",
+  "logLevel": "info",
+  "cliPath": "~/.local/bin/yulong"
+}

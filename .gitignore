@@ -1,0 +1,32 @@
+# 系统文件
+.DS_Store
+
+# 依赖
+node_modules/
+
+# 构建 / 部署产物
+dist/
+/yulong-cli/yulong
+/yulong-cli/yulong-mac
+*.exe
+
+# 运行时数据（含 token、用户数据库等敏感信息，自动生成）
+data/
+*.db
+*.db.bak.*
+tokens.local.json
+
+# 本地配置与密钥
+config.local.json
+secrets.local.json
+.env.local
+.env.*.local
+
+# 编辑器 / 工具本地状态
+.idea/
+.vscode/
+.claude/settings.local.json
+.sisyphus/
+
+# 日志
+*.log

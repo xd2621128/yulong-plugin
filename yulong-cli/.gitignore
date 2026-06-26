@@ -1,0 +1,25 @@
+# 依赖
+node_modules/
+
+# 构建产物
+yulong
+dist/
+*.exe
+
+# 运行时数据（自动创建）
+data/
+
+# 本地配置和密钥
+config.local.json
+secrets.local.json
+.env.local
+.env.*.local
+tokens.local.json
+
+# 编辑器
+.DS_Store
+.idea/
+.vscode/
+
+# 日志
+*.log

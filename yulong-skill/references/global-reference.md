@@ -1,0 +1,174 @@
+# 御龙 CLI 全局参考
+
+御龙是浙江省公众信息产业有限公司的 OA 系统。本 CLI 提供对御龙 API 的封装，Skill 层通过调用 `yulong` 二进制使用。
+
+## CLI 安装位置
+
+默认安装位置（以当前用户 home 目录为根）：
+
+```
+二进制：~/.local/lib/yulong/yulong
+PATH 入口：~/.local/bin/yulong
+```
+
+Skill 调用时应优先使用 `yulong`（假设已加入 PATH）。如果 PATH 中找不到，回退到 `~/.local/bin/yulong`。
+
+若实际安装路径不同，请同步修改本 Skill `config.json` 中的 `cliPath`。
+
+### 找不到 yulong 时
+
+1. 检查 PATH 入口是否存在：
+   ```bash
+   ls -la ~/.local/bin/yulong
+   ```
+2. 检查二进制是否存在：
+   ```bash
+   ls -la ~/.local/lib/yulong/yulong
+   ```
+3. 如果都不存在，说明 CLI 未安装，需要从部署包安装（见 `SKILL.md` 的「CLI 位置」或项目 `README.md`）。
+
+## 调用约定
+
+- 所有命令必须通过 `yulong` CLI 二进制调用
+- 所有命令必须加 `--format json`，以便 Skill 解析统一 envelope 输出
+- 禁止直接使用 curl、HTTP API、浏览器访问御龙后端
+
+## 认证机制
+
+### 自动登录（当前）
+
+```bash
+yulong auth login --format json
+```
+
+执行后，CLI 会自动完成：
+1. 识别当前用户（优先级：`--userid` → `YULONG_USERID` → 约定数据库）
+2. 获取并保存 accessToken + refreshToken
+3. 刷新本地权限缓存
+
+**Agent 必须通过上述 CLI 命令完成登录，禁止直接调用任何登录接口。**
+
+### 手动注入 token（SSO 未上线前的降级方案）
+
+如果已有 token，可通过 CLI 导入：
+
+```bash
+yulong auth import-token --json '{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "expiresAt": "2026-06-18T12:00:00Z",
+  "orgId": "..."
+}' --format json
+```
+
+导入后建议重新登录一次以刷新权限缓存，或者单独刷新：
+
+```bash
+yulong auth refresh-permissions --format json
+```
+
+### Token 自动管理
+
+- accessToken 过期 → CLI 自动用 refreshToken 刷新
+- refreshToken 也过期 → CLI 自动重新登录（需要约定数据库中存在有效用户）
+- 自动重登失败 → 返回 `auth_required`，需手动执行 `yulong auth login --format json`
+
+## 环境变量
+
+| 变量 | 说明 | 优先级 |
+|------|------|--------|
+| `YULONG_HOME` | CLI 配置/数据根目录（默认 `~/.config/yulong`） | 最高 |
+| `YULONG_BASE_URL` | 御龙后端基础 URL | 高于 config.json |
+| `YULONG_USER_DB_PATH` | 御小龙约定数据库路径 | 高于 config.json |
+| `YULONG_USERID` | 显式指定当前用户 | 高于约定数据库 |
+| `YULONG_LOG_LEVEL` | 日志级别：debug / info / warn / error | 高于 config.json |
+| `YULONG_TIMEOUT` | HTTP 超时秒数 | 高于 config.json |
+
+全局安装时，wrapper 会设置默认 `YULONG_HOME=$HOME/.config/yulong`，每个用户在该目录下有独立的 `config.json`、`config.local.json` 和 `data/`。
+便携模式（直接 `./yulong`）则使用当前目录作为 `YULONG_HOME`。
+
+## 用户数据库配置（每个用户不同）
+
+不同用户的御小龙 Agent 数据库路径不同，因此 **Skill 的 `config.json` 中不硬编码 `userDbPath`**。
+运行时按以下顺序解析：
+
+1. `YULONG_USER_DB_PATH` 环境变量
+2. `config.local.json` 中的 `userDbPath`
+3. `config.json` 中的 `userDbPath`
+
+用户首次全局安装后，应在 `~/.config/yulong/config.local.json` 中写入自己的数据库路径：
+
+```json
+{
+  "userDbPath": "/path/to/their/agent/users.db"
+}
+```
+
+## 全局 Flag
+
+| Flag | 说明 | 示例 |
+|------|------|------|
+| `--userid <id>` | 显式指定用户 | `--userid 2014101415924386520` |
+| `--json <json>` | 请求参数 JSON 字符串 | `--json '{"page":1,"size":10}'` |
+| `--json-file <path>` | 从文件读取参数 | `--json-file ./params.json` |
+| `--format json` | 输出格式，Skill 必须固定使用 | `--format json` |
+| `--resource-mark <mark>` | 覆盖 `X-ResourceMark` 头 | `--resource-mark user` |
+| `--verbose` / `-v` | 详细日志 | `--verbose` |
+| `--debug` | 调试日志 | `--debug` |
+| `--dry-run` | 仅展示解析结果，不执行 | `--dry-run` |
+| `--yes` / `-y` | 危险操作确认 | `--yes` |
+| `--timeout <sec>` | HTTP 超时 | `--timeout 30` |
+
+## 输出格式
+
+### 成功
+
+```json
+{
+  "ok": true,
+  "data": { ... },
+  "asOf": "2026-06-18T08:00:00Z"
+}
+```
+
+### 失败
+
+```json
+{
+  "ok": false,
+  "error": {
+    "type": "auth_required",
+    "message": "token 已过期，请重新登录"
+  },
+  "asOf": "2026-06-18T08:00:00Z"
+}
+```
+
+错误类型见 [error-codes.md](./error-codes.md)。
+
+## 命令发现
+
+```bash
+# 列出所有已开放的命令（默认）
+yulong schema --format json
+
+# 列出所有已配置的命令（含未开放的）
+yulong schema --json '{"all":true}' --format json
+
+# 查看某个命令用法
+yulong rbac user userPage --help
+```
+
+## 配置加载优先级
+
+1. 命令行 `--` 参数
+2. 环境变量 `YULONG_*`
+3. `config.local.json`
+4. `config.json`
+5. `.env.*.local`、`.env.development`、`.env.test`、`.env.production`、`.env`
+
+## 注意事项
+
+- CLI 是单二进制产物，部署时只需 `yulong` 文件和 SQLite 数据目录
+- `data/tokens.local.json` 是运行时文件，权限应为 `0o600`
+- Skill 调用 CLI 时，应保证 `YULONG_BASE_URL` 或 `config.json` 已正确配置

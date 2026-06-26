@@ -1,0 +1,22 @@
+{
+  "name": "yulong-cli",
+  "version": "0.1.0",
+  "description": "御龙网站 API CLI",
+  "type": "module",
+  "module": "src/index.ts",
+  "bin": {
+    "yulong": "./yulong"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun run build.ts",
+    "build:linux": "bun build --compile --target=bun-linux-x64 src/index.ts --outfile yulong",
+    "build:mac": "bun build --compile --target=bun-darwin-arm64 src/index.ts --outfile yulong",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {}
+}
