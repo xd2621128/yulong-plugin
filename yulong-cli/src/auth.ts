@@ -3,6 +3,7 @@ import { loadTokens, saveTokens, clearTokens, isAccessTokenExpired } from './tok
 import { loadConfig } from './config';
 import { resolveUser } from './user-resolver';
 import { thirdPartyLogin } from './auth-core';
+import { ErrorType } from './envelope';
 import * as logger from './logger';
 import type { CommandContext } from './types';
 
@@ -113,12 +114,23 @@ async function refreshPermissions(context: CommandContext): Promise<unknown> {
  * 切换组织（骨架，待 SSO/组织切换接口提供后实现）
  */
 async function switchOrg(context: CommandContext): Promise<unknown> {
-  const orgId = context.options.json
-    ? JSON.parse(context.options.json).orgId
-    : undefined;
+  let payload: Record<string, unknown> = {};
+  if (context.options.json) {
+    try {
+      payload = JSON.parse(context.options.json);
+    }
+    catch (err) {
+      const error = new Error(`参数 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`);
+      error.name = ErrorType.VALIDATION_ERROR;
+      throw error;
+    }
+  }
 
+  const orgId = payload.orgId;
   if (!orgId) {
-    throw new Error('请通过 --json \'{ "orgId": "xxx" }\' 指定目标组织');
+    const err = new Error('请通过 --json \'{ "orgId": "xxx" }\' 指定目标组织');
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
 
   // TODO: 调用 /auth/changeLoginOrg 接口
@@ -133,20 +145,32 @@ async function switchOrg(context: CommandContext): Promise<unknown> {
  * 手动导入 token（SSO 未上线前的降级方案）
  */
 async function importToken(context: CommandContext): Promise<unknown> {
-  const params = context.options.json
-    ? JSON.parse(context.options.json)
-    : {};
+  let params: Record<string, unknown> = {};
+  if (context.options.json) {
+    try {
+      params = JSON.parse(context.options.json);
+    }
+    catch (err) {
+      const error = new Error(`参数 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`);
+      error.name = ErrorType.VALIDATION_ERROR;
+      throw error;
+    }
+  }
 
-  const accessToken = params.accessToken || params['access-token'];
-  const refreshToken = params.refreshToken || params['refresh-token'];
-  const expiresAt = parseExpiresAt(params.expiresAt || params['expires-at']);
-  const orgId = params.orgId || params['org-id'];
+  const accessToken = (params.accessToken || params['access-token']) as string | undefined;
+  const refreshToken = (params.refreshToken || params['refresh-token']) as string | undefined;
+  const expiresAt = parseExpiresAt((params.expiresAt || params['expires-at']) as string | undefined);
+  const orgId = (params.orgId || params['org-id']) as string | undefined;
 
   if (!accessToken) {
-    throw new Error('缺少 accessToken，请通过 --json 传入');
+    const err = new Error('缺少 accessToken，请通过 --json 传入');
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
   if (!refreshToken) {
-    throw new Error('缺少 refreshToken，请通过 --json 传入');
+    const err = new Error('缺少 refreshToken，请通过 --json 传入');
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
 
   saveTokens({
@@ -181,7 +205,10 @@ export async function handle(subCommand: string, context: CommandContext): Promi
       return switchOrg(context);
     case 'import-token':
       return importToken(context);
-    default:
-      throw new Error(`未知 auth 子命令: ${subCommand}。可用: login, logout, status, switch-org, import-token, refresh-permissions`);
+    default: {
+      const err = new Error(`未知 auth 子命令: ${subCommand}。可用: login, logout, status, switch-org, import-token, refresh-permissions`);
+      err.name = ErrorType.VALIDATION_ERROR;
+      throw err;
+    }
   }
 }

@@ -1,4 +1,5 @@
-import type { Envelope } from './types';
+import { formatData } from './formatter';
+import type { Envelope, GlobalOptions } from './types';
 
 /**
  * 构建成功响应
@@ -35,10 +36,20 @@ export function error(
 }
 
 /**
- * 输出 JSON 到 stdout
+ * 输出到 stdout
+ *
+ * 成功响应按 format 格式化；错误响应固定输出 JSON envelope，方便 Skill 解析。
  */
-export function printEnvelope(envelope: Envelope<unknown>): void {
-  console.log(JSON.stringify(envelope, null, 2));
+export function printEnvelope(
+  envelope: Envelope<unknown>,
+  format: GlobalOptions['format'] = 'json',
+): void {
+  if (envelope.ok && (format === 'table' || format === 'raw')) {
+    console.log(formatData(envelope.data, format));
+  }
+  else {
+    console.log(JSON.stringify(envelope, null, 2));
+  }
 }
 
 /**
@@ -49,7 +60,6 @@ export const ErrorType = {
   PERMISSION_DENIED: 'permission_denied',
   BACKEND_ERROR: 'backend_error',
   VALIDATION_ERROR: 'validation_error',
-  NOT_FOUND: 'not_found',
   CONFIG_ERROR: 'config_error',
   NETWORK_ERROR: 'network_error',
   UNKNOWN_ERROR: 'unknown_error',

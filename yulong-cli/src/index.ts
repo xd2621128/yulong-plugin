@@ -9,10 +9,17 @@ import * as auth from './auth';
 import { schemaCommand } from './schema';
 import { businessCommand } from './commands/business';
 import { getApiPermission } from './db';
-import { getCommandParams } from './command-params';
+import { getCommandParams, getCommandExample } from './command-params';
+import { thirdPartyLogin } from './auth-core';
+import { refreshUserPermissions } from './permission-guard';
+import { applyFields } from './formatter';
 import type { GlobalOptions, CommandContext, ApiPermission } from './types';
 
 const SPECIAL_COMMANDS = ['auth', 'schema'];
+
+function prepareOutput(data: unknown, fields?: string): unknown {
+  return fields ? applyFields(data, fields) : data;
+}
 
 function printHelp(): void {
   console.log(`
@@ -28,14 +35,14 @@ function printHelp(): void {
   --json <json>       请求参数 JSON 字符串
   --json-file <path>  请求参数 JSON 文件路径
   --file <path>       上传文件路径（用于文件上传类命令）
-  --format <format>  输出格式: json / table / raw（默认 json）
+  --format <format>   输出格式: json / table / raw（默认 json）
   --fields <list>     筛选输出字段（逗号分隔）
-  --resource-mark     覆盖 X-ResourceMark 请求头
+  --resource-mark <mark>  覆盖 X-ResourceMark 请求头
   --verbose, -v       详细日志
   --debug             调试日志
   --dry-run           仅显示解析结果，不执行
   --yes, -y           危险操作确认（跳过交互）
-  --timeout <sec>    HTTP 超时（秒，默认 30）
+  --timeout <sec>     HTTP 超时（秒，默认 30）
   --help, -h          显示帮助
 
 示例:
@@ -43,7 +50,7 @@ function printHelp(): void {
   yulong auth status
   yulong auth refresh-permissions --format json
   yulong rbac user userPage --json '{"currentPage":1,"pageSize":10}'
-  yulong rbac user delete --id 123 --yes
+  yulong hr knowledge addKnowledge --json '{"title":"..."}' --yes
 `);
 }
 
@@ -103,8 +110,9 @@ function printCommandHelp(commandName: string, permission: ApiPermission | null)
     }
 
     console.log(`\n示例:`);
+    const exampleJson = getCommandExample(commandName) || (needsBody ? '{"currentPage":1,"pageSize":10}' : '');
     if (needsBody) {
-      console.log(`  yulong ${cliCommand}${pathArgHint} --json '{"currentPage":1,"pageSize":10}' --format json`);
+      console.log(`  yulong ${cliCommand}${pathArgHint} --json '${exampleJson}' --format json`);
     }
     else if (hasPathParam) {
       console.log(`  yulong ${cliCommand} ${pathArgName === 'field' ? 'clue_scene' : '123'} --format json`);
@@ -136,12 +144,73 @@ function printCommandHelp(commandName: string, permission: ApiPermission | null)
   --file <path>       上传文件路径（用于文件上传类命令）
   --format <format>   输出格式: json / table / raw（默认 json）
   --fields <list>     筛选输出字段（逗号分隔）
-  --resource-mark     覆盖 X-ResourceMark 请求头
+  --resource-mark <mark>  覆盖 X-ResourceMark 请求头
   --verbose, -v       详细日志
   --debug             调试日志
   --dry-run           仅显示解析结果，不执行
   --yes, -y           危险操作确认（跳过交互）
   --timeout <sec>     HTTP 超时（秒，默认 30）
+`);
+}
+
+function printAuthHelp(subCommand?: string): void {
+  const helps: Record<string, string> = {
+    login: `auth login — 通过第三方登录接口登录
+
+用法:
+  yulong auth login [选项]
+
+说明:
+  识别当前用户并获取 accessToken + refreshToken，同时刷新本地权限缓存。
+  用户识别优先级：约定数据库 → --userid → YULONG_USERID。`,
+    logout: `auth logout — 清除本地 token
+
+用法:
+  yulong auth logout [选项]`,
+    status: `auth status — 查看本地 token 状态
+
+用法:
+  yulong auth status [选项]`,
+    'refresh-permissions': `auth refresh-permissions — 刷新本地权限缓存
+
+用法:
+  yulong auth refresh-permissions [选项]
+
+说明:
+  不重新登录，直接调用后端权限接口更新本地缓存。`,
+    'switch-org': `auth switch-org — 切换登录组织（骨架实现）
+
+用法:
+  yulong auth switch-org --json '{"orgId":"xxx"}' [选项]`,
+    'import-token': `auth import-token — 手动导入 token（SSO 未上线前的降级方案）
+
+用法:
+  yulong auth import-token --json '{"accessToken":"...","refreshToken":"...","expiresAt":"...","orgId":"..."}' [选项]`,
+  };
+
+  if (subCommand && helps[subCommand]) {
+    console.log(`\n${helps[subCommand]}\n`);
+    return;
+  }
+
+  console.log(`
+御龙 CLI — auth 子命令
+
+用法:
+  yulong auth <subcommand> [选项]
+
+子命令:
+  login              通过第三方登录接口登录
+  logout             清除本地 token
+  status             查看本地 token 状态
+  refresh-permissions 刷新本地权限缓存
+  switch-org         切换登录组织（骨架实现）
+  import-token       手动导入 token
+
+示例:
+  yulong auth login --format json
+  yulong auth status --format json
+  yulong auth refresh-permissions --format json
 `);
 }
 
@@ -195,11 +264,22 @@ function parseRequestParams(options: GlobalOptions): Record<string, unknown> {
   else if (options.jsonFile) {
     const filePath = options.jsonFile;
     if (filePath === '-') {
-      // TODO: 从 stdin 读取
-      raw = '{}';
+      // 从 stdin 读取 JSON 参数
+      const chunks: Buffer[] = [];
+      while (true) {
+        const chunk = Buffer.alloc(4096);
+        const bytesRead = fs.readSync(process.stdin.fd, chunk, 0, chunk.length, null);
+        if (bytesRead === 0) {
+          break;
+        }
+        chunks.push(chunk.subarray(0, bytesRead));
+      }
+      raw = Buffer.concat(chunks).toString('utf8');
     }
     else if (!fs.existsSync(filePath)) {
-      throw new Error(`参数文件不存在: ${filePath}`);
+      const err = new Error(`参数文件不存在: ${filePath}`);
+      err.name = ErrorType.VALIDATION_ERROR;
+      throw err;
     }
     else {
       raw = fs.readFileSync(filePath, 'utf8');
@@ -214,7 +294,9 @@ function parseRequestParams(options: GlobalOptions): Record<string, unknown> {
     return JSON.parse(raw);
   }
   catch (err) {
-    throw new Error(`参数 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`);
+    const error = new Error(`参数 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`);
+    error.name = ErrorType.VALIDATION_ERROR;
+    throw error;
   }
 }
 
@@ -228,8 +310,11 @@ async function dispatchSpecialCommand(
       return auth.handle(subCommand, context);
     case 'schema':
       return schemaCommand(context);
-    default:
-      throw new Error(`未知特殊命令: ${command}`);
+    default: {
+      const err = new Error(`未知特殊命令: ${command}`);
+      err.name = ErrorType.VALIDATION_ERROR;
+      throw err;
+    }
   }
 }
 
@@ -259,9 +344,15 @@ async function main(): Promise<void> {
   // 命令级帮助：yulong <command...> --help
   if (options.help) {
     if (positionals.length > 0) {
-      const { command: commandName } = resolveCommandAndArgs(positionals);
-      const permission = getApiPermission(commandName);
-      printCommandHelp(commandName, permission);
+      const first = positionals[0];
+      if (first === 'auth') {
+        printAuthHelp(positionals[1]);
+      }
+      else {
+        const { command: commandName } = resolveCommandAndArgs(positionals);
+        const permission = getApiPermission(commandName);
+        printCommandHelp(commandName, permission);
+      }
     }
     else {
       printHelp();
@@ -288,7 +379,7 @@ async function main(): Promise<void> {
         args: positionals.slice(2),
       };
       const result = await dispatchSpecialCommand(first, subCommand, context);
-      printEnvelope(success(result, options.dryRun));
+      printEnvelope(success(prepareOutput(result, options.fields), options.dryRun), options.format);
       return;
     }
 
@@ -315,6 +406,18 @@ async function main(): Promise<void> {
     const user = await resolveUser(options);
     info(`当前用户: ${user.userid}`);
 
+    // 当约定数据库为空、使用 --userid/YULONG_USERID 兜底时，需要先以该用户身份登录
+    if (user.source === 'explicit') {
+      info('约定数据库为空，使用指定用户登录...');
+      await thirdPartyLogin(user.userid, loadConfig().timeout || 30);
+      try {
+        await refreshUserPermissions(user.userid);
+      }
+      catch (err) {
+        logError(`登录后权限刷新失败: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
     if (options.dryRun) {
       const result = {
         command,
@@ -324,13 +427,13 @@ async function main(): Promise<void> {
         resourceMark: options.resourceMark || '使用 api_permissions.resource_mark',
         note: 'dry-run 模式，未执行实际请求',
       };
-      printEnvelope(success(result, true));
+      printEnvelope(success(prepareOutput(result, options.fields), true), options.format);
       return;
     }
 
     // 分发到业务命令
     const result = await businessCommand(context, user.userid, params);
-    printEnvelope(success(result));
+    printEnvelope(success(prepareOutput(result, options.fields)), options.format);
   }
   catch (err) {
     const message = err instanceof Error ? err.message : String(err);

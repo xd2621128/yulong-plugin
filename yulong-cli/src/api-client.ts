@@ -24,7 +24,7 @@ interface BackendResponse {
  *
  * 路径参数占位符格式为 ${param0}、${param1} ...，与后端代码生成器保持一致。
  */
-function resolvePath(
+export function resolvePath(
   path: string,
   args: string[],
   params: Record<string, unknown>,
@@ -47,7 +47,9 @@ function resolvePath(
       return encodeURIComponent(String(params[key]));
     }
 
-    throw new Error(`路径参数 ${match} 缺失，请在命令中提供对应参数（如 yulong hr article detail <id>）`);
+    const err = new Error(`路径参数 ${match} 缺失，请在命令中提供对应参数（如 yulong hr article detail <id>）`);
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   });
 
   // 若通过 --json 填充了路径参数，将其从查询/body中移除避免重复
@@ -72,7 +74,9 @@ export function buildRequest(
   const baseUrl = process.env.YULONG_BASE_URL || config.baseUrl;
 
   if (!baseUrl) {
-    throw new Error('未配置 baseUrl，请在 config.json 中设置或通过 YULONG_BASE_URL 环境变量指定');
+    const err = new Error('未配置 baseUrl，请在 config.json 中设置或通过 YULONG_BASE_URL 环境变量指定');
+    err.name = ErrorType.CONFIG_ERROR;
+    throw err;
   }
 
   const permission = getApiPermission(context.command);
@@ -84,7 +88,9 @@ export function buildRequest(
   const path = permission?.path || '';
 
   if (!path) {
-    throw new Error(`未找到命令 ${context.command} 的路径映射，无法构造请求`);
+    const err = new Error(`未找到命令 ${context.command} 的路径映射，无法构造请求`);
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
 
   // 构造 URL，替换路径参数占位符
@@ -125,7 +131,7 @@ export function buildRequest(
     params: queryParams,
     body,
     headers,
-    timeout: config.timeout,
+    timeout: context.options.timeout ?? config.timeout,
   };
 }
 

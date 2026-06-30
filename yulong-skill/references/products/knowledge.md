@@ -27,7 +27,7 @@
 | `title` | string | 是 | 知识库标题，1-40 字 |
 | `type` | number | 是 | 知识库类型，见下方「类型字典」 |
 | `content` | string | 是 | 正文内容，HTML 字符串（富文本） |
-| `scopeOrgId` | string | 是 | 分享范围，多个组织的 `orgNumId` 用英文逗号拼接 |
+| `scopeOrgId` | string | 是 | **分享范围，必须传 `orgNumId`**；多个组织的 `orgNumId` 用英文逗号拼接。禁止误用树节点的 `id`。 |
 | `classification` | number | **条件必填** | 当 `type` 为 `16`（模板下载）或 `17`（常见问题解答）时**必须**提供，否则 Agent 应追问用户 |
 | `attachments` | string | 否 | 附件 JSON 字符串，格式见下方「附件格式」；空数组或不传时表示无附件 |
 
@@ -64,7 +64,7 @@
    }
    ```
 
-3. 用户按名称选择后，使用对应节点的 `orgNumId`。
+3. 用户按名称选择后，**必须**使用对应节点的 `orgNumId`，**不能**使用 `id`（`id` 与 `orgNumId` 可能不一致）。
 4. 多选时把多个 `orgNumId` 用英文逗号拼接，例如：
 
    ```

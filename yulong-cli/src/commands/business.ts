@@ -23,11 +23,15 @@ function isFileUploadCommand(command: string): boolean {
  */
 function buildFileUploadBody(filePath: string): FormData {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`上传文件不存在: ${filePath}`);
+    const err = new Error(`上传文件不存在: ${filePath}`);
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
   const stat = fs.statSync(filePath);
   if (!stat.isFile()) {
-    throw new Error(`上传路径不是文件: ${filePath}`);
+    const err = new Error(`上传路径不是文件: ${filePath}`);
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
 
   const buffer = fs.readFileSync(filePath);
@@ -56,9 +60,10 @@ export async function businessCommand(
   userid: string,
   params: Record<string, unknown>,
 ): Promise<unknown> {
-  // 1. 检查 token
   if (!hasToken()) {
-    throw new Error('未登录，请先使用 yulong auth import-token 注入 token');
+    const err = new Error('未登录，请先使用 yulong auth import-token 注入 token');
+    err.name = ErrorType.AUTH_REQUIRED;
+    throw err;
   }
 
   // 2. 获取权限映射
@@ -96,7 +101,9 @@ export async function businessCommand(
 
   // 5. 危险操作确认
   if (permission.is_dangerous === 1 && !context.options.yes) {
-    throw new Error(`危险操作 ${context.command}，请添加 --yes 确认`);
+    const err = new Error(`危险操作 ${context.command}，请添加 --yes 确认`);
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
 
   // 6. 构造并执行请求
@@ -106,7 +113,9 @@ export async function businessCommand(
   if (isFileUploadCommand(context.command)) {
     const filePath = context.options.file;
     if (!filePath) {
-      throw new Error(`命令 ${context.command} 需要 --file 参数指定上传文件路径`);
+      const err = new Error(`命令 ${context.command} 需要 --file 参数指定上传文件路径`);
+      err.name = ErrorType.VALIDATION_ERROR;
+      throw err;
     }
     explicitBody = buildFileUploadBody(filePath);
   }

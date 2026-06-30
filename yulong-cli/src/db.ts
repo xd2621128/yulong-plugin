@@ -10,8 +10,15 @@ let db: Database | null = null;
 
 export function getDb(): Database {
   if (!db) {
-    const dataDir = getDataDir();
-    const dbPath = path.join(dataDir, DB_NAME);
+    const envPath = process.env.YULONG_USER_DB_PATH;
+    let dbPath: string;
+    if (envPath) {
+      dbPath = envPath;
+    }
+    else {
+      const dataDir = getDataDir();
+      dbPath = path.join(dataDir, DB_NAME);
+    }
     const exists = fs.existsSync(dbPath);
     db = new Database(dbPath);
     if (!exists) {
@@ -119,8 +126,8 @@ export function getApiPermission(commandName: string): ApiPermission | null {
 export function listApiPermissions(module?: string): ApiPermission[] {
   const database = getDb();
   if (module) {
-    const stmt = database.query("SELECT * FROM api_permissions WHERE command_name LIKE ? ORDER BY command_name");
-    return stmt.all(`${module}.%`) as ApiPermission[];
+    const stmt = database.query('SELECT * FROM api_permissions WHERE module = ? ORDER BY command_name');
+    return stmt.all(module) as ApiPermission[];
   }
   const stmt = database.query('SELECT * FROM api_permissions ORDER BY command_name');
   return stmt.all() as ApiPermission[];

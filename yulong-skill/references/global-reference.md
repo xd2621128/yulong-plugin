@@ -42,7 +42,7 @@ yulong auth login --format json
 ```
 
 执行后，CLI 会自动完成：
-1. 识别当前用户（优先级：`--userid` → `YULONG_USERID` → 约定数据库）
+1. 识别当前用户（优先级：**约定数据库 → `--userid` → `YULONG_USERID`**；当约定数据库为空时，使用 `--userid` 或 `YULONG_USERID` 指定的用户并自动登录）
 2. 获取并保存 accessToken + refreshToken
 3. 刷新本地权限缓存
 
