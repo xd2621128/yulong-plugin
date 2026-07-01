@@ -56,6 +56,16 @@ yulong hr file upload return attachment --file /path/to/file.pdf --format json
 
 成功时返回字符串，通常是上传后的文件 id；在构造通报/知识库等附件对象时，`colRealpath` 应拼为 `/pubinfo-hr/hr/file/download/{fileId}`，与前端页面保持一致。
 
+### 跨模块附件迁移
+
+当需要把 A 模块的附件用于 B 模块时（例如把通报附件导入知识库），**禁止直接复用 A 模块返回的 `fileId` 或 `colRealpath`**。正确流程：
+
+1. 用 `yulong hr file download <fileId>` 把附件下载到本地；
+2. 用 `yulong hr file upload --file <path>` 重新上传，获取新的 `fileId`；
+3. 用新 `fileId` 拼接 `colRealpath` 填入 B 模块的 `attachments`。
+
+> 不同模块对文件存储的权限/归属要求不同，直接复用原文件 ID 可能导致下载 404 或发布范围错误。
+
 ### 返回附件对象
 
 `hr.file.upload.return.attachment` 成功时返回 `AttachmentVO`：

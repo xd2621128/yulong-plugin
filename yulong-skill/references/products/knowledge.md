@@ -108,7 +108,12 @@
 ]
 ```
 
-如果用户提供本地附件，Agent 应先调用 `yulong hr file upload --file <path> --format json` 上传文件获取 `fileId`，再拼接 `colRealpath`：
+如果涉及附件，Agent 必须按以下规则处理：
+
+1. **本地附件**：调用 `yulong hr file upload --file <path> --format json` 上传，获取 `fileId`。
+2. **从其他模块迁移的附件**（如把通报附件搬到知识库）：**禁止直接复用原 `fileId` 或 `colRealpath`**，必须先用 `yulong hr file download <fileId>` 下载到本地，再重新调用 `hr.file.upload` 上传获取新 `fileId`。
+
+然后用新的 `fileId` 拼接 `colRealpath`：
 
 ```
 /pubinfo-hr/hr/file/download/{fileId}
