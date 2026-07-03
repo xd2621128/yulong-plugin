@@ -54,7 +54,8 @@ NODE_ENV=production bun run src/index.ts schema
 |----------|------|--------|
 | `YULONG_BASE_URL` | 御龙后端 API 基础地址 | 读取 `config.json` |
 | `YULONG_TIMEOUT` | HTTP 超时（秒） | 30 |
-| `YULONG_USER_DB_PATH` | 御小龙用户数据库路径 | 空 |
+| `YULONG_DB_PATH` | CLI 运行时数据库路径 | `{dataDir}/yulong.db` |
+| `YULONG_USER_DB_PATH` | 御小龙身份数据库路径（覆盖默认路径） | 空 |
 | `YULONG_LOG_LEVEL` | 日志级别：debug / info / warn / error | info |
 
 ### 配置优先级
@@ -94,7 +95,8 @@ bun run build.ts
 mkdir -p /opt/yulong/yulong-cli/data
 cp yulong /opt/yulong/yulong-cli/
 cp config.json /opt/yulong/yulong-cli/
-cp data/users.db /opt/yulong/yulong-cli/data/
+# data/yulong.db 会在首次运行时自动创建；如需预置命令注册表，可拷贝 seed 数据：
+# cp data/yulong.db /opt/yulong/yulong-cli/data/
 chmod +x /opt/yulong/yulong-cli/yulong
 
 # 3. 创建 PATH 入口 wrapper（推荐 /usr/local/bin，无权限时可用 ~/.local/bin）
@@ -112,7 +114,7 @@ wrapper 中的 `YULONG_HOME` 决定每个用户把配置和数据放在哪里：
 | 模式 | `YULONG_HOME` | 行为 |
 |------|--------------|------|
 | 全局安装（推荐） | 默认 `$HOME/.config/yulong` | 每个用户独立配置/数据，首次运行时从安装目录复制 seed |
-| 便携包 | 不设置，直接 `cd` 到解压目录运行 `./yulong` | 使用包内 `config.json` 和 `data/users.db` |
+| 便携包 | 不设置，直接 `cd` 到解压目录运行 `./yulong` | 使用包内 `config.json` 和 `data/yulong.db` |
 | 自定义 | 显式设置任意路径 | 配置/数据放到该路径 |
 
 ### 2. 配置
@@ -124,24 +126,22 @@ wrapper 中的 `YULONG_HOME` 决定每个用户把配置和数据放在哪里：
 ├── config.json          # 首次从安装目录复制
 ├── config.local.json    # 用户本地覆盖（可选）
 └── data/
-    └── users.db         # 首次从安装目录复制
+    └── yulong.db         # CLI 运行时数据库（自动创建）
 ```
 
-**他人使用时只需要配置自己的用户数据库路径**。最常用方式是在 `~/.config/yulong/config.local.json` 中覆盖：
+**本地模式依赖御小龙登录**。macOS 上默认读取 `~/Library/Application Support/御小龙/yuxiaolong.db`。若非 macOS 或需要覆盖路径，可在 `~/.config/yulong/config.local.json` 中配置：
 
 ```json
 {
-  "userDbPath": "/path/to/their/agent/users.db"
+  "userDbPath": "/path/to/yuxiaolong.db"
 }
 ```
 
-或在 shell 配置中设置环境变量：
+或在 shell 中：
 
 ```bash
-export YULONG_USER_DB_PATH=/path/to/their/agent/users.db
+export YULONG_USER_DB_PATH=/path/to/yuxiaolong.db
 ```
-
-`userDbPath` 支持绝对路径；相对路径则相对于当前工作目录。
 
 生产环境覆盖 `baseUrl`：
 

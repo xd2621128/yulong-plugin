@@ -4,6 +4,9 @@ import * as path from 'path';
 export interface Config {
   baseUrl: string;
   timeout: number;
+  /** CLI 自身数据库路径（默认 {dataDir}/yulong.db） */
+  dbPath: string;
+  /** 御小龙身份数据库路径，仅用于覆盖默认路径 */
   userDbPath: string;
   logLevel: string;
 }
@@ -11,6 +14,7 @@ export interface Config {
 const DEFAULT_CONFIG: Config = {
   baseUrl: '',
   timeout: 30,
+  dbPath: '',
   userDbPath: '',
   logLevel: 'info',
 };
@@ -37,8 +41,8 @@ function ensureUserRoot(binaryDir: string, userRoot: string): void {
   const dstDataDir = path.join(userRoot, 'data');
   if (fs.existsSync(srcDataDir) && !fs.existsSync(dstDataDir)) {
     fs.mkdirSync(dstDataDir, { recursive: true });
-    const srcDb = path.join(srcDataDir, 'users.db');
-    const dstDb = path.join(dstDataDir, 'users.db');
+    const srcDb = path.join(srcDataDir, 'yulong.db');
+    const dstDb = path.join(dstDataDir, 'yulong.db');
     if (fs.existsSync(srcDb) && !fs.existsSync(dstDb)) {
       fs.copyFileSync(srcDb, dstDb);
     }
@@ -258,6 +262,12 @@ export function loadConfig(): Config {
       || configJson.timeout
       || DEFAULT_CONFIG.timeout,
 
+    dbPath:
+      process.env.YULONG_DB_PATH
+      || configLocal.dbPath
+      || configJson.dbPath
+      || DEFAULT_CONFIG.dbPath,
+
     userDbPath:
       process.env.YULONG_USER_DB_PATH
       || configLocal.userDbPath
@@ -270,19 +280,6 @@ export function loadConfig(): Config {
       || configJson.logLevel
       || DEFAULT_CONFIG.logLevel,
   };
-}
-
-export function getUserDbPath(config: Config): string {
-  // 1. YULONG_USER_DB_PATH 环境变量
-  // 2. config.userDbPath
-  const envPath = process.env.YULONG_USER_DB_PATH;
-  if (envPath) {
-    return envPath;
-  }
-  if (config.userDbPath) {
-    return config.userDbPath;
-  }
-  return '';
 }
 
 export function getBaseUrl(config: Config): string {

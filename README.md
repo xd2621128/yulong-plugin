@@ -64,7 +64,7 @@ chmod +x ~/.local/bin/yulong
 {
   "baseUrl": "https://your-yulong-host/pubinfo-hr",
   "timeout": 30,
-  "userDbPath": "./data/users.db",
+  "dbPath": "./data/yulong.db",
   "logLevel": "info"
 }
 ```
@@ -89,7 +89,7 @@ yulong <cmd> --format json --token <accessToken>
 
 | 模式 | 触发条件 | token 生命周期 | 本地缓存 | 自动重登/刷新 |
 |------|----------|----------------|----------|---------------|
-| **本地模式** | 不指定 `--token` | CLI 通过 SSO 获取并管理 | `tokens.local.json`、`users.db` | 支持 |
+| **本地模式** | 不指定 `--token` | CLI 通过 SSO 获取并管理 | `tokens.local.json`、`yulong.db`（权限缓存/命令注册表） | 支持 |
 | **Token 模式** | `--token <accessToken>` | 由上游保证有效 | 不缓存 token、不缓存用户 | 不支持，token 失效直接返回 `auth_required` |
 
 Token 模式下禁止执行 `yulong auth login / logout / switch-org`。

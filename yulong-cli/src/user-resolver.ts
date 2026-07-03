@@ -2,7 +2,7 @@ import { Database } from 'bun:sqlite';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { loadConfig, getDataDir } from './config';
+import { loadConfig } from './config';
 import type { GlobalOptions } from './types';
 
 function getYuxiaolongDbPath(): string | undefined {
@@ -14,6 +14,8 @@ function getYuxiaolongDbPath(): string | undefined {
 
 /**
  * 显式配置的数据库路径（最高优先级）
+ *
+ * 用于测试或非 macOS 环境显式指定御小龙身份数据库。
  */
 function resolveExplicitUserDbPath(): string | undefined {
   const config = loadConfig();
@@ -27,16 +29,11 @@ function resolveExplicitUserDbPath(): string | undefined {
 }
 
 /**
- * 默认候选路径（macOS 御小龙 DB → CLI 自带的 users.db）
+ * 默认候选路径（仅 macOS 御小龙 DB）
  */
 function getDefaultUserDbCandidates(): string[] {
-  const candidates: string[] = [];
   const yuxiaolongPath = getYuxiaolongDbPath();
-  if (yuxiaolongPath) {
-    candidates.push(yuxiaolongPath);
-  }
-  candidates.push(path.join(getDataDir(), 'users.db'));
-  return candidates;
+  return yuxiaolongPath ? [yuxiaolongPath] : [];
 }
 
 interface UserRow {
@@ -56,32 +53,23 @@ function readFromAuthSessions(db: Database): UserRow | null {
   }
 }
 
-function readFromUsers(db: Database): UserRow | null {
-  try {
-    const stmt = db.query('SELECT userid, org_id FROM users ORDER BY created_at DESC LIMIT 1');
-    return stmt.get() as UserRow | null;
-  }
-  catch {
-    return null;
-  }
-}
-
 /**
  * 解析当前用户
  *
  * 读取顺序：
- * 1. 环境变量 / 配置文件显式指定的用户数据库
+ * 1. 环境变量 / 配置文件显式指定的御小龙数据库
  * 2. macOS 上御小龙默认数据库：~/Library/Application Support/御小龙/yuxiaolong.db
- * 3. CLI 自带的 users.db：{dataDir}/users.db
  *
- * 支持两种 schema：
- * - 御小龙：auth_sessions.id = 'current'，用户信息在 user_info JSON 中
- * - 本地约定数据库：users 表，取 created_at 最新的一条
+ * 只支持御小龙 schema：auth_sessions.id = 'current'，用户信息在 user_info JSON 中。
  */
 export async function resolveUser(_options: GlobalOptions): Promise<string> {
   const explicitPath = resolveExplicitUserDbPath();
   const candidates = explicitPath ? [explicitPath] : getDefaultUserDbCandidates();
   const tried: string[] = [];
+
+  if (candidates.length === 0) {
+    throw new Error('未配置御小龙用户数据库，请先在御小龙登录，或通过 YULONG_USER_DB_PATH / config.userDbPath 指定数据库路径。');
+  }
 
   for (const dbPath of candidates) {
     if (!fs.existsSync(dbPath)) {
@@ -91,7 +79,7 @@ export async function resolveUser(_options: GlobalOptions): Promise<string> {
 
     const db = new Database(dbPath, { readonly: true, create: false });
     try {
-      const user = readFromAuthSessions(db) ?? readFromUsers(db);
+      const user = readFromAuthSessions(db);
       if (user?.userid) {
         return user.userid;
       }
