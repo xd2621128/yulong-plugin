@@ -25,6 +25,7 @@ describe('resolveUser', () => {
     originalDbPath = process.env.YULONG_USER_DB_PATH;
     process.env.YULONG_USER_DB_PATH = path.join(tempDir, 'users.db');
     closeDb();
+    getDb(); // 确保测试数据库文件和 schema 已创建
   });
 
   afterEach(() => {

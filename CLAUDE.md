@@ -44,7 +44,9 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 1. 用 Node `util.parseArgs` 解析全局选项（`--token`、`--json`、`--format`、`--fields` 等）。
 2. 特殊命令 `auth` / `schema` 直接分发到 `auth.ts` / `schema.ts`。
 3. 业务命令通过 `resolveCommandAndArgs()` 在 `api_permissions` 表中做最长前缀匹配，得到命令名和路径参数。
-4. 普通模式调用 `resolveUser()` 从 `users.db` 读取最新用户；Token 模式跳过此步。
+4. 普通模式调用 `resolveUser()` 读取当前登录用户；Token 模式跳过此步。
+   - macOS 默认读取 `~/Library/Application Support/御小龙/yuxiaolong.db` 中 `auth_sessions.id = 'current'` 的 `user_info`。
+   - 也兼容遗留的 `users.db` 约定表；可通过 `YULONG_USER_DB_PATH` / `config.userDbPath` 显式指定。
 5. 最终进入 `commands/business.ts`。
 
 ### 命令注册表：`api_permissions`
@@ -63,7 +65,7 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 
 | 模式 | 触发 | 行为 |
 |------|------|------|
-| **本地模式** | 不指定 `--token` | 从 `users.db` 读取用户，用 `tokens.local.json` 存取 token，自动 refresh/re-login，权限缓存到 `user_permissions` |
+| **本地模式** | 不指定 `--token` | macOS 默认从御小龙 `yuxiaolong.db` 读取用户（也兼容 `users.db`），用 `tokens.local.json` 存取 token，自动 refresh/re-login，权限缓存到 `user_permissions` |
 | **Token 模式** | `--token <accessToken>` | 不读本地用户、不写 token 文件；每次启动用该 token 拉取权限做预检；`RequestConfig.skipAuthRetry = true`；`auth login/logout/switch-org` 不可用 |
 
 ### 认证与权限
