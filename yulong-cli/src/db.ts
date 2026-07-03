@@ -73,6 +73,15 @@ export function initSchema(): void {
       created_at TEXT,
       UNIQUE(command_name)
     );
+
+    -- 保证 users 表始终只保留最新一条用户
+    -- 每次插入前清空 users 和 user_permissions，避免旧用户/旧权限缓存残留
+    CREATE TRIGGER IF NOT EXISTS users_keep_latest
+    BEFORE INSERT ON users
+    BEGIN
+      DELETE FROM users;
+      DELETE FROM user_permissions;
+    END;
   `);
 }
 

@@ -1,0 +1,222 @@
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { handle as authHandle } from './auth';
+import { fetchUserPermissions } from './permission-guard';
+import { businessCommand } from './commands/business';
+import { buildRequest, request } from './api-client';
+import { closeDb, getDb, upsertApiPermission } from './db';
+import { ErrorType } from './envelope';
+import type { CommandContext } from './types';
+
+function contextFor(args: Partial<CommandContext['options']> & { command?: string; args?: string[] } = {}): CommandContext {
+  return {
+    command: args.command || 'test.echo',
+    module: 'test',
+    resource: 'echo',
+    action: '',
+    options: {
+      format: 'json',
+      verbose: false,
+      debug: false,
+      dryRun: false,
+      yes: false,
+      timeout: 30,
+      token: args.token,
+      ...args,
+    },
+    args: args.args || [],
+  };
+}
+
+function mockFetch(handler: (url: string, init?: RequestInit) => Response | Promise<Response>): () => void {
+  const original = globalThis.fetch;
+  globalThis.fetch = Object.assign(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const response = await handler(url, init);
+      return response;
+    },
+    original,
+  ) as typeof original;
+  return () => {
+    globalThis.fetch = original;
+  };
+}
+
+describe('Token mode', () => {
+  let tempDir: string;
+  let originalBaseUrl: string | undefined;
+  let originalDbPath: string | undefined;
+  let restoreFetch: (() => void) | undefined;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yulong-token-test-'));
+    originalBaseUrl = process.env.YULONG_BASE_URL;
+    originalDbPath = process.env.YULONG_USER_DB_PATH;
+    process.env.YULONG_BASE_URL = 'http://test.yulong.local';
+    process.env.YULONG_USER_DB_PATH = path.join(tempDir, 'users.db');
+    closeDb();
+
+    // 注册一个测试命令
+    getDb();
+    upsertApiPermission({
+      module: 'test',
+      resource: 'echo',
+      action: 'echo',
+      command_name: 'test.echo',
+      method: 'GET',
+      path: '/test/echo',
+      required_permissions: '["all"]',
+      match_mode: 'all',
+      is_dangerous: 0,
+      needs_resource_mark: 0,
+    });
+  });
+
+  afterEach(() => {
+    if (restoreFetch) {
+      restoreFetch();
+      restoreFetch = undefined;
+    }
+    closeDb();
+    if (originalBaseUrl !== undefined) {
+      process.env.YULONG_BASE_URL = originalBaseUrl;
+    }
+    else {
+      delete process.env.YULONG_BASE_URL;
+    }
+    if (originalDbPath !== undefined) {
+      process.env.YULONG_USER_DB_PATH = originalDbPath;
+    }
+    else {
+      delete process.env.YULONG_USER_DB_PATH;
+    }
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  describe('auth commands', () => {
+    it('auth status returns token_mode', async () => {
+      const result = await authHandle('status', contextFor({ token: 'tok123' }));
+      expect(result).toEqual({
+        status: 'token_mode',
+        message: '当前使用 --token 外部 token',
+      });
+    });
+
+    it('auth login is prohibited in token mode', async () => {
+      await expect(authHandle('login', contextFor({ token: 'tok123' }))).rejects.toThrow('当前使用 --token 模式');
+    });
+
+    it('auth logout is prohibited in token mode', async () => {
+      await expect(authHandle('logout', contextFor({ token: 'tok123' }))).rejects.toThrow('当前使用 --token 模式');
+    });
+
+    it('auth switch-org is prohibited in token mode', async () => {
+      const ctx = contextFor({ token: 'tok123', json: '{"orgId":"o1"}' });
+      await expect(authHandle('switch-org', ctx)).rejects.toThrow('当前使用 --token 模式');
+    });
+
+    it('auth refresh-permissions fetches permissions with token', async () => {
+      restoreFetch = mockFetch((url) => {
+        if (url.includes('/rbac/resource/grantedResources')) {
+          return new Response(JSON.stringify({ code: 0, data: ['perm1', 'perm2'] }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ code: -1, msg: 'unexpected' }), { status: 200 });
+      });
+
+      const result = await authHandle('refresh-permissions', contextFor({ token: 'tok123' }));
+      expect(result).toMatchObject({
+        status: 'permissions_fetched',
+        mode: 'token',
+        permissionCount: 2,
+      });
+    });
+  });
+
+  describe('fetchUserPermissions', () => {
+    it('returns permissions when token is valid', async () => {
+      restoreFetch = mockFetch((url) => {
+        if (url.includes('/rbac/resource/grantedResources')) {
+          return new Response(JSON.stringify({ code: 0, data: ['a', 'b', 'c'] }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ code: -1 }), { status: 200 });
+      });
+
+      const perms = await fetchUserPermissions('valid-token');
+      expect(perms).toEqual(['a', 'b', 'c']);
+    });
+
+    it('throws auth_required when token expired', async () => {
+      restoreFetch = mockFetch((url) => {
+        if (url.includes('/rbac/resource/grantedResources')) {
+          return new Response(JSON.stringify({ code: 400001004, msg: 'token expired' }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ code: -1 }), { status: 200 });
+      });
+
+      await expect(fetchUserPermissions('expired-token')).rejects.toThrow('token expired');
+      try {
+        await fetchUserPermissions('expired-token');
+      }
+      catch (err) {
+        expect((err as Error).name).toBe(ErrorType.AUTH_REQUIRED);
+      }
+    });
+  });
+
+  describe('buildRequest', () => {
+    it('uses external token for Authorization header', () => {
+      const ctx = contextFor({ token: 'external-token' });
+      const config = buildRequest(ctx, {});
+      expect(config.headers?.Authorization).toBe('external-token');
+    });
+  });
+
+  describe('request', () => {
+    it('does not auto-refresh when skipAuthRetry is true', async () => {
+      restoreFetch = mockFetch((url) => {
+        if (url.includes('/test/echo')) {
+          return new Response(JSON.stringify({ code: 400001004, msg: 'token invalid' }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ code: -1 }), { status: 200 });
+      });
+
+      await expect(
+        request({
+          method: 'GET',
+          url: 'http://test.yulong.local/test/echo',
+          skipAuthRetry: true,
+        }),
+      ).rejects.toThrow('token invalid');
+    });
+  });
+
+  describe('businessCommand', () => {
+    it('executes token-mode request without touching users.db', async () => {
+      let receivedAuth: string | undefined;
+      restoreFetch = mockFetch((url, init) => {
+        if (url.includes('/rbac/resource/grantedResources')) {
+          return new Response(JSON.stringify({ code: 0, data: ['all'] }), { status: 200 });
+        }
+        if (url.includes('/test/echo')) {
+          receivedAuth = init?.headers && typeof init.headers === 'object'
+            ? (init.headers as Record<string, string>).Authorization
+            : undefined;
+          return new Response(JSON.stringify({ code: 0, data: { echoed: true } }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ code: -1 }), { status: 200 });
+      });
+
+      const result = await businessCommand(contextFor({ token: 'my-token' }), undefined, {});
+      expect(result).toEqual({ echoed: true });
+      expect(receivedAuth).toBe('my-token');
+
+      // 确认 users 表为空也未报错
+      const db = getDb();
+      const count = db.query('SELECT COUNT(*) as c FROM users').get() as { c: number };
+      expect(count.c).toBe(0);
+    });
+  });
+});

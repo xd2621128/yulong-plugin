@@ -20,11 +20,18 @@ yulong <cmd> --format json --verbose ...
 
 如果 `error.type === "auth_required"`：
 
-```bash
-yulong auth login --format json
-```
+- **本地模式**：
 
-然后重新执行原命令。
+  ```bash
+  yulong auth login --format json
+  ```
+
+  然后重新执行原命令。
+
+- **Token 模式**：
+
+  停止并向上游报告："当前使用 --token 模式，token 已失效，请重新获取 token 后重试"。
+  **禁止执行 `yulong auth login`。**
 
 ### Step 3: 权限不足时终止
 

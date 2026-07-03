@@ -10,8 +10,6 @@ import { schemaCommand } from './schema';
 import { businessCommand } from './commands/business';
 import { getApiPermission } from './db';
 import { getCommandParams, getCommandExample } from './command-params';
-import { thirdPartyLogin } from './auth-core';
-import { refreshUserPermissions } from './permission-guard';
 import { applyFields } from './formatter';
 import type { GlobalOptions, CommandContext, ApiPermission } from './types';
 
@@ -31,7 +29,7 @@ function printHelp(): void {
   yulong schema [选项]
 
 全局选项:
-  --userid <id>       用户标识（默认从约定数据库读取）
+  --token <token>     外部 accessToken（Token 模式，CLI 不管理 token 生命周期）
   --json <json>       请求参数 JSON 字符串
   --json-file <path>  请求参数 JSON 文件路径
   --file <path>       上传文件路径（用于文件上传类命令）
@@ -138,7 +136,7 @@ function printCommandHelp(commandName: string, permission: ApiPermission | null)
 
   console.log(`
 全局选项:
-  --userid <id>       用户标识（默认从约定数据库读取）
+  --token <token>     外部 accessToken（Token 模式，CLI 不管理 token 生命周期）
   --json <json>       请求参数 JSON 字符串
   --json-file <path>  请求参数 JSON 文件路径
   --file <path>       上传文件路径（用于文件上传类命令）
@@ -162,7 +160,7 @@ function printAuthHelp(subCommand?: string): void {
 
 说明:
   识别当前用户并获取 accessToken + refreshToken，同时刷新本地权限缓存。
-  用户识别优先级：约定数据库 → --userid → YULONG_USERID。`,
+  用户从约定数据库读取。`,
     logout: `auth logout — 清除本地 token
 
 用法:
@@ -182,10 +180,6 @@ function printAuthHelp(subCommand?: string): void {
 
 用法:
   yulong auth switch-org --json '{"orgId":"xxx"}' [选项]`,
-    'import-token': `auth import-token — 手动导入 token（SSO 未上线前的降级方案）
-
-用法:
-  yulong auth import-token --json '{"accessToken":"...","refreshToken":"...","expiresAt":"...","orgId":"..."}' [选项]`,
   };
 
   if (subCommand && helps[subCommand]) {
@@ -205,7 +199,6 @@ function printAuthHelp(subCommand?: string): void {
   status             查看本地 token 状态
   refresh-permissions 刷新本地权限缓存
   switch-org         切换登录组织（骨架实现）
-  import-token       手动导入 token
 
 示例:
   yulong auth login --format json
@@ -218,7 +211,7 @@ function parseGlobalOptions(argv: string[]): { options: GlobalOptions; positiona
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
-      userid: { type: 'string' },
+      token: { type: 'string' },
       json: { type: 'string' },
       'json-file': { type: 'string' },
       file: { type: 'string' },
@@ -238,7 +231,7 @@ function parseGlobalOptions(argv: string[]): { options: GlobalOptions; positiona
 
   return {
     options: {
-      userid: values.userid as string | undefined,
+      token: values.token as string | undefined,
       json: values.json as string | undefined,
       jsonFile: values['json-file'] as string | undefined,
       file: values.file as string | undefined,
@@ -402,26 +395,16 @@ async function main(): Promise<void> {
       args: pathArgs,
     };
 
-    // 解析用户
-    const user = await resolveUser(options);
-    info(`当前用户: ${user.userid}`);
-
-    // 当约定数据库为空、使用 --userid/YULONG_USERID 兜底时，需要先以该用户身份登录
-    if (user.source === 'explicit') {
-      info('约定数据库为空，使用指定用户登录...');
-      await thirdPartyLogin(user.userid, loadConfig().timeout || 30);
-      try {
-        await refreshUserPermissions(user.userid);
-      }
-      catch (err) {
-        logError(`登录后权限刷新失败: ${err instanceof Error ? err.message : String(err)}`);
-      }
+    // Token 模式下不读取本地用户；普通模式从约定数据库读取最新用户
+    const userId = options.token ? undefined : await resolveUser(options);
+    if (userId) {
+      info(`当前用户: ${userId}`);
     }
 
     if (options.dryRun) {
       const result = {
         command,
-        user: user.userid,
+        user: options.token ? 'token-mode' : userId,
         params,
         baseUrl: getBaseUrl(config),
         resourceMark: options.resourceMark || '使用 api_permissions.resource_mark',
@@ -432,7 +415,7 @@ async function main(): Promise<void> {
     }
 
     // 分发到业务命令
-    const result = await businessCommand(context, user.userid, params);
+    const result = await businessCommand(context, userId, params);
     printEnvelope(success(prepareOutput(result, options.fields)), options.format);
   }
   catch (err) {

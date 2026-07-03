@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { GlobalOptions } from './types';
 
 export interface Config {
   baseUrl: string;
@@ -285,10 +284,6 @@ export function getUserDbPath(config: Config): string {
     return config.userDbPath;
   }
   return '';
-}
-
-export function getUserId(options: GlobalOptions): string | undefined {
-  return options.userid || process.env.YULONG_USERID;
 }
 
 export function getBaseUrl(config: Config): string {

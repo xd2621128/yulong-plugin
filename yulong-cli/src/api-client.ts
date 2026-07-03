@@ -102,7 +102,7 @@ export function buildRequest(
     'Accept': 'application/json, text/plain, */*',
   };
 
-  const token = getAccessToken();
+  const token = context.options.token || getAccessToken();
   if (token) {
     headers.Authorization = token;
   }
@@ -378,6 +378,11 @@ async function doRequest(config: RequestConfig, retried: boolean): Promise<unkno
   // 后端对过期/非法 accessToken 统一返回 400001004，refreshToken 过期也返回 400001004
   // 因此先尝试刷新，若刷新接口 itself 返回 400001004，refreshAccessToken 会清 token 并抛错
   if (data.code === 400001006 || data.code === 400001004) {
+    if (config.skipAuthRetry) {
+      const err = new Error(data.msg || 'token 已失效，请重新提供 token');
+      err.name = ErrorType.AUTH_REQUIRED;
+      throw err;
+    }
     if (retried) {
       const err = new Error('token 刷新后仍无效，请重新登录');
       err.name = ErrorType.AUTH_REQUIRED;

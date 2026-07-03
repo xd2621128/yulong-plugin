@@ -67,6 +67,101 @@ export async function checkPermission(
 }
 
 /**
+ * 通过指定 token 拉取用户权限
+ *
+ * Token 模式专用：不读/写本地 user_permissions 缓存，token 失效直接抛 auth_required。
+ */
+export async function fetchUserPermissions(token: string): Promise<string[]> {
+  const config = loadConfig();
+  const baseUrl = process.env.YULONG_BASE_URL || config.baseUrl;
+
+  if (!baseUrl) {
+    const err = new Error('未配置 baseUrl，无法获取权限');
+    err.name = ErrorType.CONFIG_ERROR;
+    throw err;
+  }
+
+  const url = `${baseUrl.replace(/\/$/, '')}/rbac/resource/grantedResources`;
+  logger.info('正在使用外部 token 获取用户权限...');
+
+  const timeoutSeconds = config.timeout || 30;
+
+  interface BackendResponse {
+    code: number;
+    msg: string;
+    data?: string[];
+    success?: boolean;
+    hint?: string;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': token,
+      },
+      signal: controller.signal,
+    });
+  }
+  catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === 'AbortError') {
+      const error = new Error(`获取权限请求超时 (${timeoutSeconds}秒)`);
+      error.name = ErrorType.NETWORK_ERROR;
+      throw error;
+    }
+    const error = new Error(`获取权限网络请求失败: ${err instanceof Error ? err.message : String(err)}`);
+    error.name = ErrorType.NETWORK_ERROR;
+    throw error;
+  }
+
+  clearTimeout(timeoutId);
+
+  if (!response.ok) {
+    const err = new Error(`获取权限请求失败 (HTTP ${response.status} ${response.statusText})`);
+    err.name = ErrorType.NETWORK_ERROR;
+    throw err;
+  }
+
+  let data: BackendResponse;
+  try {
+    data = await response.json() as BackendResponse;
+  }
+  catch (err) {
+    const error = new Error(`获取权限响应解析失败 (HTTP ${response.status}): ${err instanceof Error ? err.message : String(err)}`);
+    error.name = ErrorType.BACKEND_ERROR;
+    throw error;
+  }
+
+  if (data.code === 400001006 || data.code === 400001004) {
+    const err = new Error(data.msg || '外部 token 已失效，请重新获取 token');
+    err.name = ErrorType.AUTH_REQUIRED;
+    throw err;
+  }
+
+  if (data.code !== 0) {
+    const err = new Error(`获取权限失败 [${data.code}] ${data.msg || ''}`);
+    err.name = ErrorType.BACKEND_ERROR;
+    (err as Error & { detail?: Record<string, unknown> }).detail = {
+      code: data.code,
+      message: data.msg,
+      hint: data.hint,
+    };
+    throw err;
+  }
+
+  const permissions = data.data || [];
+  logger.info(`已获取权限: ${permissions.length} 个`);
+  return permissions;
+}
+
+/**
  * 检查 token 是否存在
  */
 export function hasToken(): boolean {

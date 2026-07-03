@@ -6,7 +6,7 @@ CLI 统一 envelope 的 `error.type` 字段取值如下：
 
 | 类型 | 触发场景 | Skill 处理方式 |
 |------|---------|---------------|
-| `auth_required` | token 过期、缺失、自动重登失败 | 提示用户执行 `yulong auth login` 或 `yulong auth import-token` |
+| `auth_required` | token 过期、缺失、自动重登失败 | 本地模式：提示执行 `yulong auth login --format json`；Token 模式：向上游报告 token 失效，禁止执行 `auth login` |
 | `permission_denied` | Skill/CLI 权限预检失败或后端返回 `400001007` | 终止操作，说明缺失权限，不发送到后端 |
 | `backend_error` | 后端返回非 0 业务错误码 | 展示完整 `code` 和 `msg`，禁止自行尝试替代方案 |
 | `network_error` | HTTP 超时、连接失败、DNS 错误 | 建议检查 `YULONG_BASE_URL` 和网络，加 `--verbose` 重试 |
