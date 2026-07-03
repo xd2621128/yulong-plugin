@@ -64,7 +64,6 @@ chmod +x ~/.local/bin/yulong
 {
   "baseUrl": "https://your-yulong-host/pubinfo-hr",
   "timeout": 30,
-  "dbPath": "./data/yulong.db",
   "logLevel": "info"
 }
 ```
