@@ -273,7 +273,6 @@ export function loadConfig(): Config {
 }
 
 export function getUserDbPath(config: Config): string {
-  // 优先级：命令行 --userid 不适用数据库路径
   // 1. YULONG_USER_DB_PATH 环境变量
   // 2. config.userDbPath
   const envPath = process.env.YULONG_USER_DB_PATH;

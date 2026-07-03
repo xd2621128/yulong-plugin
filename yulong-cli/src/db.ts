@@ -1,5 +1,4 @@
 import { Database } from 'bun:sqlite';
-import * as fs from 'fs';
 import * as path from 'path';
 import { getDataDir } from './config';
 import type { ApiPermission, UserPermission } from './types';
@@ -19,11 +18,9 @@ export function getDb(): Database {
       const dataDir = getDataDir();
       dbPath = path.join(dataDir, DB_NAME);
     }
-    const exists = fs.existsSync(dbPath);
     db = new Database(dbPath);
-    if (!exists) {
-      initSchema();
-    }
+    // 每次启动都确保表/触发器存在，兼容旧 DB 升级
+    initSchema();
   }
   return db;
 }
