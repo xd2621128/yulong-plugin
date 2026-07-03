@@ -1,23 +1,108 @@
 import { Database } from 'bun:sqlite';
+import * as fs from 'fs';
 import * as path from 'path';
-import { getDataDir } from './config';
+import { getDataDir, loadConfig } from './config';
+import * as logger from './logger';
 import type { ApiPermission, UserPermission } from './types';
 
-const DB_NAME = 'users.db';
+const DB_NAME = 'yulong.db';
+
+const CLI_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS user_permissions (
+    userid TEXT PRIMARY KEY,
+    permissions TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS api_permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    action TEXT NOT NULL,
+    command_name TEXT NOT NULL,
+    method TEXT NOT NULL,
+    path TEXT NOT NULL,
+    required_permissions TEXT NOT NULL,
+    match_mode TEXT NOT NULL DEFAULT 'any',
+    is_dangerous INTEGER DEFAULT 0,
+    needs_resource_mark INTEGER DEFAULT 1,
+    resource_mark TEXT,
+    description TEXT,
+    created_at TEXT,
+    UNIQUE(command_name)
+  );
+`;
 
 let db: Database | null = null;
 
+function getDbPath(): string {
+  const config = loadConfig();
+  return process.env.YULONG_DB_PATH || config.dbPath || path.join(getDataDir(), DB_NAME);
+}
+
+/**
+ * 一次性迁移旧版 users.db 到 yulong.db
+ *
+ * 旧 users.db 中唯一需要保留的数据是 api_permissions 和 user_permissions。
+ * users 表将被丢弃，因为用户身份现在来自御小龙 yuxiaolong.db。
+ */
+function migrateLegacyUsersDb(targetDbPath: string): void {
+  if (fs.existsSync(targetDbPath)) {
+    return;
+  }
+
+  const dataDir = path.dirname(targetDbPath);
+  const legacyPath = path.join(dataDir, 'users.db');
+  if (!fs.existsSync(legacyPath)) {
+    return;
+  }
+
+  logger.info(`检测到旧版 users.db，正在迁移到 ${DB_NAME}...`);
+
+  const newDb = new Database(targetDbPath);
+  try {
+    newDb.exec(CLI_SCHEMA_SQL);
+    newDb.exec(`ATTACH DATABASE '${legacyPath}' AS legacy`);
+
+    const tables = newDb.query(
+      "SELECT name FROM legacy.sqlite_master WHERE type='table' AND name IN ('api_permissions', 'user_permissions')",
+    ).all() as { name: string }[];
+
+    for (const { name } of tables) {
+      newDb.exec(`INSERT INTO ${name} SELECT * FROM legacy.${name}`);
+      logger.info(`已迁移表: ${name}`);
+    }
+
+    newDb.exec('DETACH DATABASE legacy');
+  }
+  catch (err) {
+    logger.warn(`迁移旧版 users.db 失败: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  finally {
+    newDb.close();
+  }
+
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(dataDir, `users.db.bak.${timestamp}`);
+    fs.renameSync(legacyPath, backupPath);
+    logger.info(`已备份旧版 users.db 到 ${backupPath}`);
+  }
+  catch (err) {
+    logger.warn(`备份旧版 users.db 失败: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 export function getDb(): Database {
   if (!db) {
-    const envPath = process.env.YULONG_USER_DB_PATH;
-    let dbPath: string;
-    if (envPath) {
-      dbPath = envPath;
+    const dbPath = getDbPath();
+    const dataDir = path.dirname(dbPath);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
     }
-    else {
-      const dataDir = getDataDir();
-      dbPath = path.join(dataDir, DB_NAME);
-    }
+
+    migrateLegacyUsersDb(dbPath);
+
     db = new Database(dbPath);
     // 每次启动都确保表/触发器存在，兼容旧 DB 升级
     initSchema();
@@ -34,72 +119,7 @@ export function closeDb(): void {
 
 export function initSchema(): void {
   const database = getDb();
-
-  database.exec(`
-    -- 用户映射表（由御小龙预配置）
-    CREATE TABLE IF NOT EXISTS users (
-      userid TEXT PRIMARY KEY,
-      org_id TEXT,
-      default_org_id TEXT,
-      created_at TEXT,
-      updated_at TEXT
-    );
-
-    -- 用户权限缓存
-    CREATE TABLE IF NOT EXISTS user_permissions (
-      userid TEXT PRIMARY KEY,
-      permissions TEXT NOT NULL,
-      fetched_at TEXT NOT NULL
-    );
-
-    -- 接口权限映射表
-    CREATE TABLE IF NOT EXISTS api_permissions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      module TEXT NOT NULL,
-      resource TEXT NOT NULL,
-      action TEXT NOT NULL,
-      command_name TEXT NOT NULL,
-      method TEXT NOT NULL,
-      path TEXT NOT NULL,
-      required_permissions TEXT NOT NULL,
-      match_mode TEXT NOT NULL DEFAULT 'any',
-      is_dangerous INTEGER DEFAULT 0,
-      needs_resource_mark INTEGER DEFAULT 1,
-      resource_mark TEXT,
-      description TEXT,
-      created_at TEXT,
-      UNIQUE(command_name)
-    );
-
-    -- 保证 users 表始终只保留最新一条用户
-    -- 每次插入前清空 users 和 user_permissions，避免旧用户/旧权限缓存残留
-    CREATE TRIGGER IF NOT EXISTS users_keep_latest
-    BEFORE INSERT ON users
-    BEGIN
-      DELETE FROM users;
-      DELETE FROM user_permissions;
-    END;
-  `);
-}
-
-export function getUser(userid: string): { userid: string; org_id?: string; default_org_id?: string } | null {
-  const database = getDb();
-  const stmt = database.query('SELECT userid, org_id, default_org_id FROM users WHERE userid = ?');
-  return stmt.get(userid) as { userid: string; org_id?: string; default_org_id?: string } | null;
-}
-
-export function upsertUser(userid: string, orgId?: string, defaultOrgId?: string): void {
-  const database = getDb();
-  const now = new Date().toISOString();
-  database.run(
-    `INSERT INTO users (userid, org_id, default_org_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(userid) DO UPDATE SET
-       org_id = excluded.org_id,
-       default_org_id = excluded.default_org_id,
-       updated_at = excluded.updated_at`,
-    [userid, orgId || null, defaultOrgId || null, now, now],
-  );
+  database.exec(CLI_SCHEMA_SQL);
 }
 
 export function getUserPermissions(userid: string): UserPermission | null {

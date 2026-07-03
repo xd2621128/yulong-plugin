@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { Database } from 'bun:sqlite';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { resolveUser } from './user-resolver';
-import { closeDb, getDb } from './db';
+import { closeDb } from './db';
 
 function minimalOptions() {
   return {
@@ -16,63 +17,74 @@ function minimalOptions() {
   };
 }
 
+function createYuxiaolongDb(dbPath: string, userInfo?: { id: string; orgId?: string }): void {
+  const db = new Database(dbPath);
+  db.exec(`CREATE TABLE IF NOT EXISTS auth_sessions (id TEXT PRIMARY KEY, user_info TEXT)`);
+  if (userInfo) {
+    db.run(
+      `INSERT OR REPLACE INTO auth_sessions (id, user_info) VALUES ('current', ?)`,
+      [JSON.stringify(userInfo)],
+    );
+  }
+  db.close();
+}
+
 describe('resolveUser', () => {
   let tempDir: string;
+  let originalUserDbPath: string | undefined;
   let originalDbPath: string | undefined;
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yulong-test-'));
-    originalDbPath = process.env.YULONG_USER_DB_PATH;
-    process.env.YULONG_USER_DB_PATH = path.join(tempDir, 'users.db');
+    originalUserDbPath = process.env.YULONG_USER_DB_PATH;
+    originalDbPath = process.env.YULONG_DB_PATH;
+    process.env.YULONG_DB_PATH = path.join(tempDir, 'yulong.db');
     closeDb();
   });
 
   afterEach(() => {
     closeDb();
-    if (originalDbPath !== undefined) {
-      process.env.YULONG_USER_DB_PATH = originalDbPath;
+    if (originalUserDbPath !== undefined) {
+      process.env.YULONG_USER_DB_PATH = originalUserDbPath;
     }
     else {
       delete process.env.YULONG_USER_DB_PATH;
     }
+    if (originalDbPath !== undefined) {
+      process.env.YULONG_DB_PATH = originalDbPath;
+    }
+    else {
+      delete process.env.YULONG_DB_PATH;
+    }
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('throws when database is empty', async () => {
+  it('throws when auth_sessions has no current user', async () => {
+    const dbPath = path.join(tempDir, 'yuxiaolong.db');
+    process.env.YULONG_USER_DB_PATH = dbPath;
+    createYuxiaolongDb(dbPath);
+
     await expect(resolveUser(minimalOptions())).rejects.toThrow('未配置用户');
   });
 
-  it('returns the only user in database', async () => {
-    const db = getDb();
-    db.run(`INSERT INTO users (userid, org_id, default_org_id, created_at, updated_at) VALUES ('db-user', 'org1', 'org1', datetime('now'), datetime('now'))`);
+  it('returns the current user from Yuxiaolong auth_sessions', async () => {
+    const dbPath = path.join(tempDir, 'yuxiaolong.db');
+    process.env.YULONG_USER_DB_PATH = dbPath;
+    createYuxiaolongDb(dbPath, { id: 'yxl-user', orgId: 'org1' });
 
     const userId = await resolveUser(minimalOptions());
-    expect(userId).toBe('db-user');
+    expect(userId).toBe('yxl-user');
   });
 
-  it('returns the latest user when multiple rows exist', async () => {
-    const db = getDb();
-    db.run(`INSERT INTO users (userid, org_id, default_org_id, created_at, updated_at) VALUES ('old-user', 'org1', 'org1', '2025-01-01T00:00:00Z', '2025-01-01T00:00:00Z')`);
-    db.run(`INSERT INTO users (userid, org_id, default_org_id, created_at, updated_at) VALUES ('new-user', 'org2', 'org2', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`);
+  it('prefers explicit YULONG_USER_DB_PATH over default', async () => {
+    const defaultPath = path.join(tempDir, 'default-yuxiaolong.db');
+    const explicitPath = path.join(tempDir, 'explicit-yuxiaolong.db');
+    process.env.YULONG_USER_DB_PATH = explicitPath;
+
+    createYuxiaolongDb(defaultPath, { id: 'default-user' });
+    createYuxiaolongDb(explicitPath, { id: 'explicit-user' });
 
     const userId = await resolveUser(minimalOptions());
-    expect(userId).toBe('new-user');
-  });
-
-  it('trigger clears old users and permissions on insert', async () => {
-    const db = getDb();
-    db.run(`INSERT INTO users (userid, org_id, default_org_id, created_at, updated_at) VALUES ('first', 'org1', 'org1', datetime('now'), datetime('now'))`);
-    db.run(`INSERT INTO user_permissions (userid, permissions, fetched_at) VALUES ('first', '["p1"]', datetime('now'))`);
-
-    db.run(`INSERT INTO users (userid, org_id, default_org_id, created_at, updated_at) VALUES ('second', 'org2', 'org2', datetime('now'), datetime('now'))`);
-
-    const userCount = db.query('SELECT COUNT(*) as c FROM users').get() as { c: number };
-    expect(userCount.c).toBe(1);
-
-    const permRow = db.query('SELECT userid FROM user_permissions WHERE userid = ?').get('first');
-    expect(permRow).toBeNull();
-
-    const userId = await resolveUser(minimalOptions());
-    expect(userId).toBe('second');
+    expect(userId).toBe('explicit-user');
   });
 });

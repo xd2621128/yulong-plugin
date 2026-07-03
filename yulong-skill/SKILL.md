@@ -25,7 +25,8 @@ mkdir -p ~/.local/bin
 cp ~/.local/lib/yulong-deploy-mac/yulong ~/.local/lib/yulong/yulong
 cp ~/.local/lib/yulong-deploy-mac/config.json ~/.local/lib/yulong/config.json
 mkdir -p ~/.local/lib/yulong/data
-cp ~/.local/lib/yulong-deploy-mac/data/users.db ~/.local/lib/yulong/data/users.db
+# data/yulong.db 会在首次运行时自动创建；如需预置命令注册表可拷贝 seed：
+# cp ~/.local/lib/yulong-deploy-mac/data/yulong.db ~/.local/lib/yulong/data/yulong.db
 
 cat > ~/.local/bin/yulong <<'EOF'
 #!/bin/bash
@@ -36,7 +37,7 @@ EOF
 chmod +x ~/.local/bin/yulong
 ```
 
-> Token 模式下不需要拷贝 `data/users.db`，也无需 `tokens.local.json`； accessToken 通过 `--token` 传入。
+> Token 模式下不需要 `data/yulong.db`，也无需 `tokens.local.json`； accessToken 通过 `--token` 传入。
 
 ## 严格禁止 (NEVER DO)
 

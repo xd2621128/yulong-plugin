@@ -35,21 +35,24 @@ Skill 调用时应优先使用 `yulong`（假设已加入 PATH）。如果 PATH 
 
 ## 认证机制
 
-### 自动登录（当前）
+### 本地模式（当前）
 
-```bash
-yulong auth login --format json
-```
+本地模式不指定 `--token`，CLI 自动完成：
 
-执行后，CLI 会自动完成：
-
-1. 识别当前用户（从约定数据库读取最新用户）
+1. 识别当前用户（macOS 默认从御小龙 `yuxiaolong.db` 读取；非 macOS 可通过 `YULONG_USER_DB_PATH` / `config.userDbPath` 显式指定）
 2. 获取并保存 accessToken + refreshToken
 3. 刷新本地权限缓存
 
-**Agent 必须通过上述 CLI 命令完成登录，禁止直接调用任何登录接口。**
+**Agent 必须通过 `yulong` CLI 完成登录，禁止直接调用任何登录接口。**
 
-> 约定数据库路径通过 `YULONG_USER_DB_PATH` 或 `config*.json` 的 `userDbPath` 配置。数据库为空时 CLI 会报错，请先写入用户数据。
+> 御小龙数据库路径在 macOS 上自动发现：
+> `~/Library/Application Support/御小龙/yuxiaolong.db`
+>
+> 非 macOS 或需要覆盖时，在 `~/.config/yulong/config.local.json` 中设置：
+> ```json
+> { "userDbPath": "/path/to/yuxiaolong.db" }
+> ```
+> 数据库为空或找不到当前用户时，CLI 会报错，请先登录御小龙。
 
 ### Token 模式（服务端部署）
 
@@ -68,8 +71,8 @@ yulong rbac user userPage --json '{"currentPage":1,"pageSize":10}' --token <acce
 ### Token 自动管理（仅本地模式）
 
 - accessToken 过期 → CLI 自动用 refreshToken 刷新
-- refreshToken 也过期 → CLI 自动重新登录（需要约定数据库中存在有效用户）
-- 自动重登失败 → 返回 `auth_required`，需手动执行 `yulong auth login --format json`
+- refreshToken 也过期 → CLI 自动重新登录（需要御小龙数据库中存在当前用户）
+- 自动重登失败 → 返回 `auth_required`，需先确保御小龙已登录，或手动执行 `yulong auth login --format json`
 
 ## 环境变量
 
@@ -77,31 +80,37 @@ yulong rbac user userPage --json '{"currentPage":1,"pageSize":10}' --token <acce
 |------|------|--------|
 | `YULONG_HOME` | CLI 配置/数据根目录（默认 `~/.config/yulong`） | 最高 |
 | `YULONG_BASE_URL` | 御龙后端基础 URL | 高于 config.json |
-| `YULONG_USER_DB_PATH` | 御小龙约定数据库路径 | 高于 config.json |
+| `YULONG_DB_PATH` | CLI 运行时数据库路径（默认 `{dataDir}/yulong.db`） | 高于 config.json |
+| `YULONG_USER_DB_PATH` | 御小龙身份数据库路径（覆盖默认路径） | 高于 config.json |
 | `YULONG_LOG_LEVEL` | 日志级别：debug / info / warn / error | 高于 config.json |
 | `YULONG_TIMEOUT` | HTTP 超时秒数 | 高于 config.json |
 
 全局安装时，wrapper 会设置默认 `YULONG_HOME=$HOME/.config/yulong`，每个用户在该目录下有独立的 `config.json`、`config.local.json` 和 `data/`。
 便携模式（直接 `./yulong`）则使用当前目录作为 `YULONG_HOME`。
 
-## 用户数据库配置（每个用户不同）
+## 用户数据库配置
 
-不同用户的御小龙 Agent 数据库路径不同，因此 **Skill 的 `config.json` 中不硬编码 `userDbPath`**。
-运行时按以下顺序解析：
+本地模式下，CLI 默认从御小龙数据库读取当前用户：
+
+```
+~/Library/Application Support/御小龙/yuxiaolong.db
+```
+
+macOS 上无需额外配置。非 macOS 或需要覆盖默认路径时，通过以下方式指定：
 
 1. `YULONG_USER_DB_PATH` 环境变量
 2. `config.local.json` 中的 `userDbPath`
 3. `config.json` 中的 `userDbPath`
 
-用户首次全局安装后，应在 `~/.config/yulong/config.local.json` 中写入自己的数据库路径：
+示例：
 
 ```json
 {
-  "userDbPath": "/path/to/their/agent/users.db"
+  "userDbPath": "/path/to/yuxiaolong.db"
 }
 ```
 
-> Token 模式下无需配置 `userDbPath`，CLI 不读取 `users.db`。
+> Token 模式下无需配置 `userDbPath`，CLI 不读取御小龙数据库。
 
 ## 全局 Flag
 

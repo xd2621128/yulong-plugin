@@ -27,7 +27,7 @@ bun run build:linux      # 编译 Linux x64 二进制 -> yulong
 bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 ```
 
-打包部署包到 `yulong-plugin/dist/` 是手动步骤（二进制、config.json、data/users.db、yulong-skill 一起复制后 zip）。
+打包部署包到 `yulong-plugin/dist/` 是手动步骤（二进制、config.json、data/yulong.db、yulong-skill 一起复制后 zip）。
 
 ## 配置与环境
 
@@ -44,7 +44,9 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 1. 用 Node `util.parseArgs` 解析全局选项（`--token`、`--json`、`--format`、`--fields` 等）。
 2. 特殊命令 `auth` / `schema` 直接分发到 `auth.ts` / `schema.ts`。
 3. 业务命令通过 `resolveCommandAndArgs()` 在 `api_permissions` 表中做最长前缀匹配，得到命令名和路径参数。
-4. 普通模式调用 `resolveUser()` 从 `users.db` 读取最新用户；Token 模式跳过此步。
+4. 普通模式调用 `resolveUser()` 读取当前登录用户；Token 模式跳过此步。
+   - macOS 默认读取 `~/Library/Application Support/御小龙/yuxiaolong.db` 中 `auth_sessions.id = 'current'` 的 `user_info`。
+   - 可通过 `YULONG_USER_DB_PATH` / `config.userDbPath` 显式指定御小龙数据库路径（非 macOS 或测试时使用）。
 5. 最终进入 `commands/business.ts`。
 
 ### 命令注册表：`api_permissions`
@@ -63,7 +65,7 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 
 | 模式 | 触发 | 行为 |
 |------|------|------|
-| **本地模式** | 不指定 `--token` | 从 `users.db` 读取用户，用 `tokens.local.json` 存取 token，自动 refresh/re-login，权限缓存到 `user_permissions` |
+| **本地模式** | 不指定 `--token` | macOS 默认从御小龙 `yuxiaolong.db` 读取用户，用 `tokens.local.json` 存取 token，自动 refresh/re-login，权限缓存到 `user_permissions` |
 | **Token 模式** | `--token <accessToken>` | 不读本地用户、不写 token 文件；每次启动用该 token 拉取权限做预检；`RequestConfig.skipAuthRetry = true`；`auth login/logout/switch-org` 不可用 |
 
 ### 认证与权限
@@ -87,8 +89,8 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 `db.ts` 使用 `bun:sqlite`：
 
 - `getDb()` 单例，每次启动都会执行 `initSchema()`，保证旧 DB 也能拿到新表/触发器。
-- `users_keep_latest` 触发器：每次向 `users` 表插入前清空 `users` 和 `user_permissions`，确保只保留最新用户。
-- `users.db` 同时也是 `api_permissions` 的持久化存储。
+- CLI 自身数据库默认为 `{dataDir}/yulong.db`，存储 `api_permissions`（命令注册表）和 `user_permissions`（本地权限缓存）。
+- 启动时若检测到旧版 `users.db`，会自动把 `api_permissions` 和 `user_permissions` 迁移到 `yulong.db`，并备份旧文件。
 
 ## Skill 层约定
 

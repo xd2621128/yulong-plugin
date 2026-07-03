@@ -54,9 +54,9 @@ describe('Token mode', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yulong-token-test-'));
     originalBaseUrl = process.env.YULONG_BASE_URL;
-    originalDbPath = process.env.YULONG_USER_DB_PATH;
+    originalDbPath = process.env.YULONG_DB_PATH;
     process.env.YULONG_BASE_URL = 'http://test.yulong.local';
-    process.env.YULONG_USER_DB_PATH = path.join(tempDir, 'users.db');
+    process.env.YULONG_DB_PATH = path.join(tempDir, 'yulong.db');
     closeDb();
 
     // 注册一个测试命令
@@ -88,10 +88,10 @@ describe('Token mode', () => {
       delete process.env.YULONG_BASE_URL;
     }
     if (originalDbPath !== undefined) {
-      process.env.YULONG_USER_DB_PATH = originalDbPath;
+      process.env.YULONG_DB_PATH = originalDbPath;
     }
     else {
-      delete process.env.YULONG_USER_DB_PATH;
+      delete process.env.YULONG_DB_PATH;
     }
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
@@ -194,7 +194,7 @@ describe('Token mode', () => {
   });
 
   describe('businessCommand', () => {
-    it('executes token-mode request without touching users.db', async () => {
+    it('executes token-mode request without touching user identity DB', async () => {
       let receivedAuth: string | undefined;
       restoreFetch = mockFetch((url, init) => {
         if (url.includes('/rbac/resource/grantedResources')) {
@@ -213,9 +213,9 @@ describe('Token mode', () => {
       expect(result).toEqual({ echoed: true });
       expect(receivedAuth).toBe('my-token');
 
-      // 确认 users 表为空也未报错
+      // 确认 Token 模式未写入本地权限缓存
       const db = getDb();
-      const count = db.query('SELECT COUNT(*) as c FROM users').get() as { c: number };
+      const count = db.query('SELECT COUNT(*) as c FROM user_permissions').get() as { c: number };
       expect(count.c).toBe(0);
     });
   });
