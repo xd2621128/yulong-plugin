@@ -105,5 +105,5 @@ export async function resolveUser(_options: GlobalOptions): Promise<string> {
     }
   }
 
-  throw new Error(`未配置用户，请先在御小龙登录或写入 users.db。已尝试：${tried.join('; ')}`);
+  throw new Error(`未配置用户，请先在御小龙登录。已尝试：${tried.join('; ')}`);
 }
