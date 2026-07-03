@@ -36,7 +36,8 @@
 
 ```
 yulong-plugin/
-├── plan.md                          # 本文件：开发计划
+├── .plan/
+│   └── plan.md                      # 本文件：开发计划
 │
 ├── yulong-cli/                      # CLI 二进制项目（Bun + TypeScript）
 │   ├── package.json                 # Bun 项目配置
