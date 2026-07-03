@@ -75,6 +75,6 @@ Example:
 
 ## 注意事项
 
-- 该命令需要 `user` 权限，CLI 会先做本地权限预检
+- 该命令需要 `unclaimed-business` 或 `user` 任一权限，CLI 会先做本地权限预检
 - 默认发送 `X-ResourceMark: user`
 - 如需其他上下文，可显式覆盖 `--resource-mark`

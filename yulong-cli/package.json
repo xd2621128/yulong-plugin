@@ -11,8 +11,9 @@
     "dev": "bun run src/index.ts",
     "build": "bun run build.ts",
     "build:linux": "bun build --compile --target=bun-linux-x64 src/index.ts --outfile yulong",
-    "build:mac": "bun build --compile --target=bun-darwin-arm64 src/index.ts --outfile yulong",
-    "typecheck": "tsc --noEmit"
+    "build:mac": "bun build --compile --target=bun-darwin-arm64 src/index.ts --outfile yulong-mac",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",

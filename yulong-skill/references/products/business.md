@@ -43,7 +43,7 @@ yulong project business list --json '{"currentPage":1,"pageSize":10}' --format j
 |------|------|----------|------|
 | 部门/大区 | `yulong project crmField dept --format json` | `GET /project/crmField/dept` | 返回 `{dname, deptId}`，支持多选（`depId` 传数组） |
 | 区域 | `yulong project crmField region --format json` | `GET /project/crmField/region` | 返回 `{name, id}`，`regionId` 传数字 id，`-1` 表示空 |
-| 客户属地 | `yulong project crmField province --format json` | `GET /project/crmField/province` | 返回省市区树，`areaId` 传叶子节点 id，`-1` 表示空 |
+| 客户属地 | `yulong project crmField province --format json` | `GET /project/crmField/province` | 返回省市区树；树节点字段为 `value`（地区名称）和 `id`，`areaId` 传叶子节点 id，`-1` 表示空 |
 | 产品田 | `yulong project crmField productField --format json` | `GET /project/crmField/productField` | 返回 `{id, name, children}`，`productField` 传叶子 id 数组，`-1` 表示空 |
 | 营销田总监 | `yulong project crmField marketField --format json` | `GET /project/crmField/marketField` | 返回 `{name, majordomo, majordomoId}`，`marketLeader` 传 `majordomoId`，`-1` 表示空 |
 
@@ -188,7 +188,7 @@ yulong project business list --format json --json '{
 yulong project crmField province --format json
 ```
 
-在树形结果中找到浙江省的 id（如 `330000`）。
+在树形结果中找到浙江省的 `value` 对应的 id（如 `330000`）。树节点字段为 `value`（地区名称）和 `id`，不要误用顶层 `name`（可能为 null）。
 
 **Step 2**：用 areaId 查列表
 

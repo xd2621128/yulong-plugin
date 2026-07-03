@@ -36,6 +36,8 @@ EOF
 chmod +x ~/.local/bin/yulong
 ```
 
+> Token 模式下不需要拷贝 `data/users.db`，也无需 `tokens.local.json`； accessToken 通过 `--token` 传入。
+
 ## 严格禁止 (NEVER DO)
 
 - 禁止使用 curl、HTTP API、浏览器直接访问御龙后端
@@ -47,15 +49,33 @@ chmod +x ~/.local/bin/yulong
 
 - 所有命令必须加 `--format json` 以获取可解析输出
 - 危险操作必须先向用户确认，用户同意后才加 `--yes` 执行
-- 调用业务命令前，优先检查 `yulong auth status` 确认已登录
+- 本地模式下，调用业务命令前优先检查 `yulong auth status` 确认已登录
+- Token 模式下，由外部（网页端模型对话/网关）保证 accessToken 有效，所有 `yulong` 命令末尾附加 `--token <accessToken>`，不使用 `auth login` / `logout` / `switch-org`
 - 单次批量操作不超过 100 条记录
 - 所有命令严格遵循参考文档中规定的参数格式
+
+## Token 模式（服务端部署）
+
+当 CLI 以服务端形式部署、由网页端模型对话调用时，使用 `--token` 模式：
+
+- accessToken 由模型上下文/网关层提供，通过 `--token <accessToken>` 传入
+- CLI 不管理 token 生命周期，不缓存 token，不缓存用户，不缓存权限
+- 每次 CLI 启动时会用该 token 拉取一次权限做预检
+- 业务命令统一附加 `--token <accessToken>`，例如：
+
+  ```bash
+  yulong rbac user userPage --json '{"currentPage":1,"pageSize":10}' --token <accessToken> --format json
+  ```
+
+- Token 模式下禁止执行 `yulong auth login` / `logout` / `switch-org`
+- 若返回 `auth_required`，说明 token 已失效，需由上游重新提供 token，禁止引导用户执行 `auth login`
+- Token 模式下不需要 `users.db` 和 `tokens.local.json`
 
 ## 产品总览
 
 | 模块 | 用途 | 参考文件 |
 |------|------|----------|
-| `auth` | 认证：登录、登出、状态查看、token 注入 | [global-reference.md](./references/global-reference.md) |
+| `auth` | 认证：登录、登出、状态查看、权限刷新 | [global-reference.md](./references/global-reference.md) |
 | `rbac` | 用户/角色/组织/权限管理 | [rbac.md](./references/products/rbac.md) |
 | `business` | 商机列表：全量商机查询 | [business.md](./references/products/business.md) |
 | `contract` | 合同/签约清单查询 | [contract.md](./references/products/contract.md) |
@@ -155,8 +175,10 @@ yulong rbac user userPage --help
 ## 错误处理
 
 1. 遇到错误，加 `--verbose` 重试一次，查看 stderr 日志
-2. 认证失败（`error.type === "auth_required"`）→ 执行 `yulong auth login --format json`，成功后重试原命令
-3. 权限不足（`error.type === "permission_denied"`）→ 终止并说明缺失权限；如怀疑缓存过期，可先执行 `yulong auth refresh-permissions --format json` 刷新权限缓存后再试，仍然失败则执行 `yulong auth login --format json`
+2. 认证失败（`error.type === "auth_required"`）→ 区分模式处理
+   - **本地模式**：执行 `yulong auth login --format json`，成功后重试原命令
+   - **Token 模式**：停止，向上游报告“token 已失效，请重新提供 token 后重试”，**禁止执行 `auth login`**
+3. 权限不足（`error.type === "permission_denied"`）→ 终止并说明缺失权限；本地模式下如怀疑缓存过期，可先执行 `yulong auth refresh-permissions --format json` 刷新权限缓存后再试，仍然失败则执行 `yulong auth login --format json`
 4. 后端业务错误（`error.type === "backend_error"`）→ 展示完整错误码和消息，禁止自行替代方案
 5. 仍然失败，参考 [recovery-guide.md](./references/recovery-guide.md)
 

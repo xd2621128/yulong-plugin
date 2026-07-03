@@ -1,17 +1,18 @@
-import { refreshUserPermissions } from './permission-guard';
-import { loadTokens, saveTokens, clearTokens, isAccessTokenExpired } from './token-manager';
+import { refreshUserPermissions, fetchUserPermissions } from './permission-guard';
+import { loadTokens, clearTokens, isAccessTokenExpired } from './token-manager';
 import { loadConfig } from './config';
 import { resolveUser } from './user-resolver';
 import { thirdPartyLogin } from './auth-core';
+import { ErrorType } from './envelope';
 import * as logger from './logger';
 import type { CommandContext } from './types';
 
-function parseExpiresAt(input?: string): string {
-  if (!input) {
-    // 默认 1 小时后过期
-    return new Date(Date.now() + 60 * 60 * 1000).toISOString();
+function assertNotTokenMode(context: CommandContext): void {
+  if (context.options.token) {
+    const err = new Error('当前使用 --token 模式，auth 子命令不可用');
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
-  return input;
 }
 
 /**
@@ -20,19 +21,9 @@ function parseExpiresAt(input?: string): string {
  * 调用 POST /hr/auth/extends/login/third/party4UserId
  */
 async function login(context: CommandContext): Promise<unknown> {
-  // 解析登录用户：--userid > YULONG_USERID > 约定数据库唯一用户
-  let loginName: string;
-  if (context.options.userid) {
-    loginName = context.options.userid;
-  }
-  else if (process.env.YULONG_USERID) {
-    loginName = process.env.YULONG_USERID;
-  }
-  else {
-    const user = await resolveUser(context.options);
-    loginName = user.userid;
-  }
+  assertNotTokenMode(context);
 
+  const loginName = await resolveUser(context.options);
   await thirdPartyLogin(loginName, loadConfig().timeout || 30);
 
   // 登录成功后刷新权限缓存
@@ -56,7 +47,8 @@ async function login(context: CommandContext): Promise<unknown> {
 /**
  * 登出
  */
-async function logout(_context: CommandContext): Promise<unknown> {
+async function logout(context: CommandContext): Promise<unknown> {
+  assertNotTokenMode(context);
   clearTokens();
   logger.info('已清除本地 token');
   return { status: 'logged_out' };
@@ -65,12 +57,19 @@ async function logout(_context: CommandContext): Promise<unknown> {
 /**
  * 查看 token 状态
  */
-async function status(_context: CommandContext): Promise<unknown> {
+async function status(context: CommandContext): Promise<unknown> {
+  if (context.options.token) {
+    return {
+      status: 'token_mode',
+      message: '当前使用 --token 外部 token',
+    };
+  }
+
   const tokens = loadTokens();
   if (!tokens) {
     return {
       status: 'not_authenticated',
-      message: '未登录，请使用 yulong auth login 登录或 yulong auth import-token 手动注入 token',
+      message: '未登录，请使用 yulong auth login 登录',
     };
   }
 
@@ -90,21 +89,20 @@ async function status(_context: CommandContext): Promise<unknown> {
  * 调用 GET /rbac/resource/grantedResources，不重新登录。
  */
 async function refreshPermissions(context: CommandContext): Promise<unknown> {
-  let loginName: string;
-  if (context.options.userid) {
-    loginName = context.options.userid;
-  }
-  else if (process.env.YULONG_USERID) {
-    loginName = process.env.YULONG_USERID;
-  }
-  else {
-    const user = await resolveUser(context.options);
-    loginName = user.userid;
+  if (context.options.token) {
+    const permissions = await fetchUserPermissions(context.options.token);
+    return {
+      status: 'permissions_fetched',
+      mode: 'token',
+      permissionCount: permissions.length,
+    };
   }
 
+  const loginName = await resolveUser(context.options);
   const permissions = await refreshUserPermissions(loginName);
   return {
     status: 'permissions_refreshed',
+    mode: 'local',
     permissionCount: permissions.length,
   };
 }
@@ -113,12 +111,25 @@ async function refreshPermissions(context: CommandContext): Promise<unknown> {
  * 切换组织（骨架，待 SSO/组织切换接口提供后实现）
  */
 async function switchOrg(context: CommandContext): Promise<unknown> {
-  const orgId = context.options.json
-    ? JSON.parse(context.options.json).orgId
-    : undefined;
+  assertNotTokenMode(context);
 
+  let payload: Record<string, unknown> = {};
+  if (context.options.json) {
+    try {
+      payload = JSON.parse(context.options.json);
+    }
+    catch (err) {
+      const error = new Error(`参数 JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`);
+      error.name = ErrorType.VALIDATION_ERROR;
+      throw error;
+    }
+  }
+
+  const orgId = payload.orgId;
   if (!orgId) {
-    throw new Error('请通过 --json \'{ "orgId": "xxx" }\' 指定目标组织');
+    const err = new Error('请通过 --json \'{ "orgId": "xxx" }\' 指定目标组织');
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
 
   // TODO: 调用 /auth/changeLoginOrg 接口
@@ -126,41 +137,6 @@ async function switchOrg(context: CommandContext): Promise<unknown> {
     status: 'not_implemented',
     message: '组织切换接口尚未实现',
     targetOrgId: orgId,
-  };
-}
-
-/**
- * 手动导入 token（SSO 未上线前的降级方案）
- */
-async function importToken(context: CommandContext): Promise<unknown> {
-  const params = context.options.json
-    ? JSON.parse(context.options.json)
-    : {};
-
-  const accessToken = params.accessToken || params['access-token'];
-  const refreshToken = params.refreshToken || params['refresh-token'];
-  const expiresAt = parseExpiresAt(params.expiresAt || params['expires-at']);
-  const orgId = params.orgId || params['org-id'];
-
-  if (!accessToken) {
-    throw new Error('缺少 accessToken，请通过 --json 传入');
-  }
-  if (!refreshToken) {
-    throw new Error('缺少 refreshToken，请通过 --json 传入');
-  }
-
-  saveTokens({
-    accessToken,
-    refreshToken,
-    expiresAt,
-    orgId,
-  });
-
-  logger.info('token 已保存');
-  return {
-    status: 'token_imported',
-    expiresAt,
-    orgId,
   };
 }
 
@@ -179,9 +155,10 @@ export async function handle(subCommand: string, context: CommandContext): Promi
       return refreshPermissions(context);
     case 'switch-org':
       return switchOrg(context);
-    case 'import-token':
-      return importToken(context);
-    default:
-      throw new Error(`未知 auth 子命令: ${subCommand}。可用: login, logout, status, switch-org, import-token, refresh-permissions`);
+    default: {
+      const err = new Error(`未知 auth 子命令: ${subCommand}。可用: login, logout, status, switch-org, refresh-permissions`);
+      err.name = ErrorType.VALIDATION_ERROR;
+      throw err;
+    }
   }
 }

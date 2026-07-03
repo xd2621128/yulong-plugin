@@ -1,5 +1,4 @@
 import { Database } from 'bun:sqlite';
-import * as fs from 'fs';
 import * as path from 'path';
 import { getDataDir } from './config';
 import type { ApiPermission, UserPermission } from './types';
@@ -10,13 +9,18 @@ let db: Database | null = null;
 
 export function getDb(): Database {
   if (!db) {
-    const dataDir = getDataDir();
-    const dbPath = path.join(dataDir, DB_NAME);
-    const exists = fs.existsSync(dbPath);
-    db = new Database(dbPath);
-    if (!exists) {
-      initSchema();
+    const envPath = process.env.YULONG_USER_DB_PATH;
+    let dbPath: string;
+    if (envPath) {
+      dbPath = envPath;
     }
+    else {
+      const dataDir = getDataDir();
+      dbPath = path.join(dataDir, DB_NAME);
+    }
+    db = new Database(dbPath);
+    // 每次启动都确保表/触发器存在，兼容旧 DB 升级
+    initSchema();
   }
   return db;
 }
@@ -66,6 +70,15 @@ export function initSchema(): void {
       created_at TEXT,
       UNIQUE(command_name)
     );
+
+    -- 保证 users 表始终只保留最新一条用户
+    -- 每次插入前清空 users 和 user_permissions，避免旧用户/旧权限缓存残留
+    CREATE TRIGGER IF NOT EXISTS users_keep_latest
+    BEFORE INSERT ON users
+    BEGIN
+      DELETE FROM users;
+      DELETE FROM user_permissions;
+    END;
   `);
 }
 
@@ -119,8 +132,8 @@ export function getApiPermission(commandName: string): ApiPermission | null {
 export function listApiPermissions(module?: string): ApiPermission[] {
   const database = getDb();
   if (module) {
-    const stmt = database.query("SELECT * FROM api_permissions WHERE command_name LIKE ? ORDER BY command_name");
-    return stmt.all(`${module}.%`) as ApiPermission[];
+    const stmt = database.query('SELECT * FROM api_permissions WHERE module = ? ORDER BY command_name');
+    return stmt.all(module) as ApiPermission[];
   }
   const stmt = database.query('SELECT * FROM api_permissions ORDER BY command_name');
   return stmt.all() as ApiPermission[];

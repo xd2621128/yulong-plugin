@@ -44,7 +44,7 @@ yulong project origin-contract forward list --json '{"currentPage":1,"pageSize":
 |------|------|----------|------|
 | 部门/大区 | `yulong project crmField dept --format json` | `GET /project/crmField/dept` | 返回 `{dname, deptId}`，支持多选（`depId` 传数组） |
 | 区域 | `yulong project crmField region --format json` | `GET /project/crmField/region` | 返回 `{name, id}`，`regionId` 传数字 id |
-| 客户属地 | `yulong project crmField province --format json` | `GET /project/crmField/province` | 返回省市区树，`areaId` 传逗号分隔的叶子 id（如 `"330000,330400,330402"`） |
+| 客户属地 | `yulong project crmField province --format json` | `GET /project/crmField/province` | 返回省市区树；树节点字段为 `value`（地区名称）和 `id`，`areaId` 传逗号分隔的叶子 id（如 `"330000,330400,330402"`） |
 | 产品田 | `yulong project crmField productField --format json` | `GET /project/crmField/productField` | 返回 `{id, name, children}`，`productField` 传叶子 id 数组 |
 | 营销田总监 | `yulong project crmField marketField --format json` | `GET /project/crmField/marketField` | 返回 `{name, majordomo, majordomoId}`，`marketLeader` 传 `majordomoId` |
 | 研发田 | `yulong project system pm-index listRDField --format json` | `POST /project/system/pm-index/listRDField` | 返回 `{name, id}`，`rdField` 传 id 数组 |

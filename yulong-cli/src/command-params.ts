@@ -72,8 +72,8 @@ export const COMMAND_PARAMS: Record<string, CommandParam[]> = {
     { name: 'productField', type: 'number[]', desc: '产品田叶子 ID 集合（-1 表示空），需先调用 project crmField productField 查询' },
     { name: 'rdField', type: 'number[]', desc: '研发田 ID 集合（-1 表示空），需先调用 project system pm-index listRDField 查询' },
     { name: 'marketLeader', type: 'string', desc: '营销田总监 ID（majordomoId，-1 表示空），需先调用 project crmField marketField 查询' },
-    { name: 'incomeTimeBegin', type: 'string', desc: '收入月份开始（YYYY-MM）' },
-    { name: 'incomeTimeEnd', type: 'string', desc: '收入月份结束（YYYY-MM）' },
+    { name: 'incomeTimeBegin', type: 'string', desc: '收入月份开始；后端按日期/日期时间解析，建议 YYYY-MM-DD' },
+    { name: 'incomeTimeEnd', type: 'string', desc: '收入月份结束；后端按日期/日期时间解析，建议 YYYY-MM-DD' },
     { name: 'incomeType', type: 'number', desc: '收入类型（前端枚举，直接传值）：1-代收代付 2-内部其他 3-内部主营 4-弱电施工 5-外部其他 6-外部主营' },
     { name: 'edaType', type: 'number[]', desc: 'EDA 类型（前端 dict store）：1-信产账套 2-数智账套 3-天翼账套 4-无线账套 5-云技术账套 6-原子能力账套 7-合作分成 8-优化项目' },
     { name: 'contractYear', type: 'number', desc: '合同年份（YYYY）' },
@@ -91,8 +91,8 @@ export const COMMAND_PARAMS: Record<string, CommandParam[]> = {
     { name: 'productField', type: 'number[]', desc: '产品田叶子 ID 集合（-1 表示空），需先调用 project crmField productField 查询' },
     { name: 'rdField', type: 'number[]', desc: '研发田 ID 集合（-1 表示空），需先调用 project system pm-index listRDField 查询' },
     { name: 'marketLeader', type: 'string', desc: '营销田总监 ID（majordomoId，-1 表示空），需先调用 project crmField marketField 查询' },
-    { name: 'incomeTimeBegin', type: 'string', desc: '收入月份开始（YYYY-MM）' },
-    { name: 'incomeTimeEnd', type: 'string', desc: '收入月份结束（YYYY-MM）' },
+    { name: 'incomeTimeBegin', type: 'string', desc: '收入月份开始；后端按日期/日期时间解析，建议 YYYY-MM-DD' },
+    { name: 'incomeTimeEnd', type: 'string', desc: '收入月份结束；后端按日期/日期时间解析，建议 YYYY-MM-DD' },
     { name: 'incomeType', type: 'number', desc: '收入类型（前端枚举，直接传值）：1-代收代付 2-内部其他 3-内部主营 4-弱电施工 5-外部其他 6-外部主营' },
     { name: 'edaType', type: 'number[]', desc: 'EDA 类型（前端 dict store）：1-信产账套 2-数智账套 3-天翼账套 4-无线账套 5-云技术账套 6-原子能力账套 7-合作分成 8-优化项目' },
     { name: 'contractYear', type: 'number', desc: '合同年份（YYYY）' },
@@ -177,4 +177,17 @@ export const COMMAND_PARAMS: Record<string, CommandParam[]> = {
 
 export function getCommandParams(commandName: string): CommandParam[] | undefined {
   return COMMAND_PARAMS[commandName];
+}
+
+/**
+ * 命令级真实参数示例
+ *
+ * 用于 --help 输出。若存在则覆盖通用占位示例。
+ */
+const COMMAND_EXAMPLES: Record<string, string> = {
+  'hr.knowledge.addKnowledge': '{"title":"知识库标题","type":12,"content":"正文内容","scopeOrgId":"1793907438427492353"}',
+};
+
+export function getCommandExample(commandName: string): string | undefined {
+  return COMMAND_EXAMPLES[commandName];
 }

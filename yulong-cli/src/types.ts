@@ -4,8 +4,8 @@
 
 /** CLI 全局选项 */
 export interface GlobalOptions {
-  /** 用户标识 */
-  userid?: string;
+  /** 外部 accessToken（Token 模式） */
+  token?: string;
   /** 请求参数 JSON 字符串 */
   json?: string;
   /** 请求参数 JSON 文件路径 */
@@ -102,6 +102,8 @@ export interface RequestConfig {
   timeout?: number;
   /** 当前用户，用于 token 过期后自动重新登录 */
   userid?: string;
+  /** Token 模式下禁用自动刷新/重试 */
+  skipAuthRetry?: boolean;
 }
 
 /** 权限检查结果 */

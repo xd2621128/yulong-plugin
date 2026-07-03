@@ -42,32 +42,30 @@ yulong auth login --format json
 ```
 
 执行后，CLI 会自动完成：
-1. 识别当前用户（优先级：`--userid` → `YULONG_USERID` → 约定数据库）
+
+1. 识别当前用户（从约定数据库读取最新用户）
 2. 获取并保存 accessToken + refreshToken
 3. 刷新本地权限缓存
 
 **Agent 必须通过上述 CLI 命令完成登录，禁止直接调用任何登录接口。**
 
-### 手动注入 token（SSO 未上线前的降级方案）
+> 约定数据库路径通过 `YULONG_USER_DB_PATH` 或 `config*.json` 的 `userDbPath` 配置。数据库为空时 CLI 会报错，请先写入用户数据。
 
-如果已有 token，可通过 CLI 导入：
+### Token 模式（服务端部署）
 
-```bash
-yulong auth import-token --json '{
-  "accessToken": "...",
-  "refreshToken": "...",
-  "expiresAt": "2026-06-18T12:00:00Z",
-  "orgId": "..."
-}' --format json
-```
-
-导入后建议重新登录一次以刷新权限缓存，或者单独刷新：
+当 CLI 放在服务端、由网页端模型对话调用时，使用 `--token` 传入外部 accessToken：
 
 ```bash
-yulong auth refresh-permissions --format json
+yulong rbac user userPage --json '{"currentPage":1,"pageSize":10}' --token <accessToken> --format json
 ```
 
-### Token 自动管理
+- CLI 不管理 token 生命周期，不保存 `tokens.local.json`
+- 无本地用户缓存、无本地权限缓存
+- 每次启动时用该 token 拉取一次权限做预检
+- Token 模式下 `yulong auth login` / `logout` / `switch-org` 不可用
+- 若 token 失效，CLI 返回 `auth_required`，由上游重新注入 token
+
+### Token 自动管理（仅本地模式）
 
 - accessToken 过期 → CLI 自动用 refreshToken 刷新
 - refreshToken 也过期 → CLI 自动重新登录（需要约定数据库中存在有效用户）
@@ -80,7 +78,6 @@ yulong auth refresh-permissions --format json
 | `YULONG_HOME` | CLI 配置/数据根目录（默认 `~/.config/yulong`） | 最高 |
 | `YULONG_BASE_URL` | 御龙后端基础 URL | 高于 config.json |
 | `YULONG_USER_DB_PATH` | 御小龙约定数据库路径 | 高于 config.json |
-| `YULONG_USERID` | 显式指定当前用户 | 高于约定数据库 |
 | `YULONG_LOG_LEVEL` | 日志级别：debug / info / warn / error | 高于 config.json |
 | `YULONG_TIMEOUT` | HTTP 超时秒数 | 高于 config.json |
 
@@ -104,11 +101,13 @@ yulong auth refresh-permissions --format json
 }
 ```
 
+> Token 模式下无需配置 `userDbPath`，CLI 不读取 `users.db`。
+
 ## 全局 Flag
 
 | Flag | 说明 | 示例 |
 |------|------|------|
-| `--userid <id>` | 显式指定用户 | `--userid 2014101415924386520` |
+| `--token <token>` | 外部 accessToken（Token 模式） | `--token eyJhbG...` |
 | `--json <json>` | 请求参数 JSON 字符串 | `--json '{"page":1,"size":10}'` |
 | `--json-file <path>` | 从文件读取参数 | `--json-file ./params.json` |
 | `--format json` | 输出格式，Skill 必须固定使用 | `--format json` |

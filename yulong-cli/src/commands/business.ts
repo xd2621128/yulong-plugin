@@ -1,5 +1,5 @@
 import { getApiPermission } from '../db';
-import { checkPermission, hasToken, refreshUserPermissions } from '../permission-guard';
+import { checkPermission, hasToken, refreshUserPermissions, fetchUserPermissions } from '../permission-guard';
 import { buildRequest, request } from '../api-client';
 import { ErrorType } from '../envelope';
 import * as logger from '../logger';
@@ -23,11 +23,15 @@ function isFileUploadCommand(command: string): boolean {
  */
 function buildFileUploadBody(filePath: string): FormData {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`上传文件不存在: ${filePath}`);
+    const err = new Error(`上传文件不存在: ${filePath}`);
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
   const stat = fs.statSync(filePath);
   if (!stat.isFile()) {
-    throw new Error(`上传路径不是文件: ${filePath}`);
+    const err = new Error(`上传路径不是文件: ${filePath}`);
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
 
   const buffer = fs.readFileSync(filePath);
@@ -45,20 +49,29 @@ function buildFileUploadBody(filePath: string): FormData {
 /**
  * 业务命令入口
  *
- * 当前为骨架实现：
- * 1. 检查 token
- * 2. 检查权限映射
- * 3. 权限预检
- * 4. 构造请求（不实际发送）
+ * 1. 普通模式：检查本地 token、权限预检、危险操作确认、执行请求
+ * 2. Token 模式：使用外部 token，每次请求前拉取权限做预检，无本地缓存
  */
 export async function businessCommand(
   context: CommandContext,
-  userid: string,
+  userid: string | undefined,
   params: Record<string, unknown>,
 ): Promise<unknown> {
-  // 1. 检查 token
-  if (!hasToken()) {
-    throw new Error('未登录，请先使用 yulong auth import-token 注入 token');
+  const token = context.options.token;
+  const isTokenMode = !!token;
+
+  if (!isTokenMode) {
+    if (!hasToken()) {
+      const err = new Error('未登录，请先使用 yulong auth login 登录');
+      err.name = ErrorType.AUTH_REQUIRED;
+      throw err;
+    }
+    if (!userid) {
+      // 普通模式下 userid 必须存在，属于内部防御
+      const err = new Error('未找到用户配置');
+      err.name = ErrorType.AUTH_REQUIRED;
+      throw err;
+    }
   }
 
   // 2. 获取权限映射
@@ -68,23 +81,33 @@ export async function businessCommand(
     logger.warn(`命令 ${context.command} 未配置权限映射，将直接调后端`);
     const reqConfig = buildRequest(context, params);
     reqConfig.userid = userid;
+    reqConfig.skipAuthRetry = isTokenMode;
     return request(reqConfig);
   }
 
   // 3. 权限预检
   const requiredPermissions = JSON.parse(permission.required_permissions) as string[];
-  let checkResult = await checkPermission(userid, requiredPermissions, permission.match_mode);
+  let checkResult: { passed: boolean; userHas: string[] };
 
-  // 4. 缓存为空且预检失败时，尝试刷新一次权限缓存
-  if (!checkResult.passed && checkResult.userHas.length === 0) {
-    logger.info('权限缓存为空，尝试刷新...');
-    try {
-      await refreshUserPermissions(userid);
-      checkResult = await checkPermission(userid, requiredPermissions, permission.match_mode);
-    }
-    catch (err) {
-      logger.warn(`权限刷新失败: ${err instanceof Error ? err.message : String(err)}`);
-      // 保持原失败结果，继续向下走
+  if (isTokenMode) {
+    const userPermissions = await fetchUserPermissions(token);
+    checkResult = checkPermissionsLocally(requiredPermissions, permission.match_mode, userPermissions);
+  }
+  else {
+    const normalUserId = userid!;
+    checkResult = await checkPermission(normalUserId, requiredPermissions, permission.match_mode);
+
+    // 4. 缓存为空且预检失败时，尝试刷新一次权限缓存
+    if (!checkResult.passed && checkResult.userHas.length === 0) {
+      logger.info('权限缓存为空，尝试刷新...');
+      try {
+        await refreshUserPermissions(normalUserId);
+        checkResult = await checkPermission(normalUserId, requiredPermissions, permission.match_mode);
+      }
+      catch (err) {
+        logger.warn(`权限刷新失败: ${err instanceof Error ? err.message : String(err)}`);
+        // 保持原失败结果，继续向下走
+      }
     }
   }
 
@@ -96,7 +119,9 @@ export async function businessCommand(
 
   // 5. 危险操作确认
   if (permission.is_dangerous === 1 && !context.options.yes) {
-    throw new Error(`危险操作 ${context.command}，请添加 --yes 确认`);
+    const err = new Error(`危险操作 ${context.command}，请添加 --yes 确认`);
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
   }
 
   // 6. 构造并执行请求
@@ -106,15 +131,17 @@ export async function businessCommand(
   if (isFileUploadCommand(context.command)) {
     const filePath = context.options.file;
     if (!filePath) {
-      throw new Error(`命令 ${context.command} 需要 --file 参数指定上传文件路径`);
+      const err = new Error(`命令 ${context.command} 需要 --file 参数指定上传文件路径`);
+      err.name = ErrorType.VALIDATION_ERROR;
+      throw err;
     }
     explicitBody = buildFileUploadBody(filePath);
   }
 
   const reqConfig = buildRequest(context, params, explicitBody);
   reqConfig.userid = userid;
+  reqConfig.skipAuthRetry = isTokenMode;
 
-  // 骨架阶段：如果未配置 baseUrl，仅返回请求配置
   try {
     return request(reqConfig);
   }
@@ -122,4 +149,25 @@ export async function businessCommand(
     logger.error(`请求失败: ${err instanceof Error ? err.message : String(err)}`);
     throw err;
   }
+}
+
+/**
+ * 本地权限对比
+ */
+function checkPermissionsLocally(
+  requiredPermissions: string[],
+  matchMode: 'any' | 'all',
+  userPermissions: string[],
+): { passed: boolean; userHas: string[] } {
+  let passed = false;
+  if (matchMode === 'all' && requiredPermissions.length === 1 && requiredPermissions[0] === 'all') {
+    passed = true;
+  }
+  else if (matchMode === 'all') {
+    passed = requiredPermissions.every(p => userPermissions.includes(p));
+  }
+  else {
+    passed = requiredPermissions.some(p => userPermissions.includes(p));
+  }
+  return { passed, userHas: userPermissions };
 }
