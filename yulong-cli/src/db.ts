@@ -159,6 +159,12 @@ export function listApiPermissions(module?: string): ApiPermission[] {
   return stmt.all() as ApiPermission[];
 }
 
+export function listApiPermissionsByPrefix(prefix: string): ApiPermission[] {
+  const database = getDb();
+  const stmt = database.query('SELECT * FROM api_permissions WHERE command_name LIKE ? ORDER BY command_name');
+  return stmt.all(`${prefix}.%`) as ApiPermission[];
+}
+
 export function upsertApiPermission(permission: Omit<ApiPermission, 'id'>): void {
   const database = getDb();
   const now = new Date().toISOString();

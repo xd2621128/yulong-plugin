@@ -8,13 +8,17 @@
 
 ```
 yulong-plugin/
+├── AGENTS.md                   # Kimi Code 项目指导
 ├── .plan/
 │   └── plan.md                 # 项目开发计划与架构设计
+├── plans/                      # 补充计划文档
 ├── yulong-cli/                 # 御龙 CLI（Bun + TypeScript）
 │   ├── src/                    # 源码
+│   ├── config.json             # CLI 默认运行时配置
 │   ├── README.md               # CLI 开发/使用说明
 │   └── package.json
 ├── yulong-skill/               # 御小龙 Skill
+│   ├── config.json             # Skill 配置（含 cliPath）
 │   ├── SKILL.md                # Skill 触发条件、意图路由、调用约定
 │   └── references/             # 参考文档（认证、错误码、产品接口等）
 └── dist/                       # 编译后的部署包（git 忽略，手动或 CI 生成）
@@ -28,37 +32,47 @@ yulong-plugin/
 
 ### 1. 部署 CLI
 
-macOS ARM64：
+#### macOS ARM64
 
 ```bash
 unzip dist/yulong-deploy-mac.zip -d ~/.local/lib
-mkdir -p ~/.local/bin
+mkdir -p ~/.local/lib/yulong ~/.local/bin
+cp ~/.local/lib/yulong-deploy-mac/yulong ~/.local/lib/yulong/yulong
+cp ~/.local/lib/yulong-deploy-mac/config.json ~/.local/lib/yulong/config.json
+mkdir -p ~/.local/lib/yulong/data
+
 cat > ~/.local/bin/yulong <<'EOF'
 #!/bin/bash
 set -e
 export YULONG_HOME="${YULONG_HOME:-$HOME/.config/yulong}"
-exec "$HOME/.local/lib/yulong-deploy-mac/yulong" "$@"
+exec "$HOME/.local/lib/yulong/yulong" "$@"
 EOF
 chmod +x ~/.local/bin/yulong
 ```
 
-Linux x64：
+#### Linux x64
 
 ```bash
 unzip dist/yulong-deploy.zip -d ~/.local/lib
-mkdir -p ~/.local/bin
+mkdir -p ~/.local/lib/yulong ~/.local/bin
+cp ~/.local/lib/yulong-deploy/yulong ~/.local/lib/yulong/yulong
+cp ~/.local/lib/yulong-deploy/config.json ~/.local/lib/yulong/config.json
+mkdir -p ~/.local/lib/yulong/data
+
 cat > ~/.local/bin/yulong <<'EOF'
 #!/bin/bash
 set -e
 export YULONG_HOME="${YULONG_HOME:-$HOME/.config/yulong}"
-exec "$HOME/.local/lib/yulong-deploy/yulong" "$@"
+exec "$HOME/.local/lib/yulong/yulong" "$@"
 EOF
 chmod +x ~/.local/bin/yulong
 ```
 
+> 首次运行后，CLI 会把 `~/.local/lib/yulong/config.json` 复制到 `~/.config/yulong/config.json`，后续优先读取用户目录下的配置。
+
 ### 2. 配置
 
-编辑 `~/.config/yulong/config.json`（首次运行后会自动创建）：
+编辑 `~/.config/yulong/config.json`（首次运行后会自动从安装目录复制）：
 
 ```json
 {
@@ -67,6 +81,19 @@ chmod +x ~/.local/bin/yulong
   "logLevel": "info"
 }
 ```
+
+本地私有覆盖可写在 `~/.config/yulong/config.local.json`（不会被提交）：
+
+```json
+{
+  "baseUrl": "https://your-private-host/pubinfo-hr",
+  "userDbPath": "/path/to/yuxiaolong.db"
+}
+```
+
+- macOS 默认读取御小龙数据库 `~/Library/Application Support/御小龙/yuxiaolong.db`。
+- 非 macOS 或需要覆盖路径时，在 `config.local.json` 中配置 `userDbPath`。
+- Token 模式无需配置 `userDbPath`。
 
 ### 3. 登录
 
@@ -86,12 +113,13 @@ yulong <cmd> --format json --token <accessToken>
 
 ## 两种认证模式
 
-| 模式 | 触发条件 | token 生命周期 | 本地缓存 | 自动重登/刷新 |
-|------|----------|----------------|----------|---------------|
-| **本地模式** | 不指定 `--token` | CLI 通过 SSO 获取并管理 | `tokens.local.json`、`yulong.db`（权限缓存/命令注册表） | 支持 |
-| **Token 模式** | `--token <accessToken>` | 由上游保证有效 | 不缓存 token、不缓存用户 | 不支持，token 失效直接返回 `auth_required` |
+| 模式 | 触发条件 | 用户来源 | token 生命周期 | 本地缓存 | 自动重登/刷新 |
+|------|----------|----------|----------------|----------|---------------|
+| **本地模式** | 不指定 `--token` | macOS 御小龙 `yuxiaolong.db`（可覆盖） | CLI 通过 SSO 获取并管理 | `tokens.local.json`、`yulong.db`（权限缓存/命令注册表） | 支持 |
+| **Token 模式** | `--token <accessToken>` | 由 token 隐式标识 | 由上游保证有效 | 不缓存 token、不缓存用户、不缓存权限 | 不支持，token 失效直接返回 `auth_required` |
 
-Token 模式下禁止执行 `yulong auth login / logout / switch-org`。
+- 本地模式不再维护独立的 `users.db`，用户身份直接来自御小龙数据库。
+- Token 模式下禁止执行 `yulong auth login / logout / switch-org`；`auth status` 和 `auth refresh-permissions` 仍可用。
 
 ---
 
@@ -109,7 +137,9 @@ bun run build:mac     # 或 build:linux
 
 ## 文档索引
 
+- [AI 助手项目指导](AGENTS.md)
 - [开发计划](.plan/plan.md)
+- [补充计划](plans/)
 - [CLI 使用说明](yulong-cli/README.md)
 - [Skill 主文档](yulong-skill/SKILL.md)
 - [认证与全局 flag](yulong-skill/references/global-reference.md)

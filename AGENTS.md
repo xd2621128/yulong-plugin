@@ -1,6 +1,7 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Kimi Code when working with code in this repository.
+It mirrors the project conventions documented in `CLAUDE.md`.
 
 ## 项目概览
 
@@ -8,7 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `yulong-cli/`：Bun + TypeScript 写的命令行客户端，编译为单二进制。
 - `yulong-skill/`：御小龙 Skill 的指令与参考文档，最终通过调用 `yulong` 二进制与后端交互。
-- `.plan/plan.md`：项目原始开发计划与架构上下文。
+- `.plan/plan.md`：项目开发计划与架构上下文。
+- `plans/`：补充计划文档，如 `plans/2026-07-02-token-mode.md`。
 - `dist/`：编译后的部署包（git 忽略），包含 `yulong-deploy-mac/` 和 `yulong-deploy/`。
 
 ## 常用命令

@@ -4,5 +4,6 @@
   "dbPath": "",
   "userDbPath": "",
   "logLevel": "info",
-  "cliPath": "~/.local/bin/yulong"
+  "cliPath": "~/.local/bin/yulong",
+  "mode": "local"
 }

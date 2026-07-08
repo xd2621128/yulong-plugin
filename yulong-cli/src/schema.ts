@@ -1,6 +1,7 @@
 import { listApiPermissions } from './db';
 import { ErrorType } from './envelope';
 import { getCommandParams } from './command-params';
+import { filterOpenPermissions } from './permission-filter';
 import type { CommandContext } from './types';
 
 function parseJsonOptions(json?: string): Record<string, unknown> {
@@ -33,16 +34,7 @@ export async function schemaCommand(context: CommandContext): Promise<unknown> {
 
   const permissions = listApiPermissions(module);
 
-  const openPermissions = permissions.filter((p) => {
-    if (showAll) return true;
-    try {
-      const required = JSON.parse(p.required_permissions) as string[];
-      return required.length > 0 || p.match_mode === 'all';
-    }
-    catch {
-      return false;
-    }
-  });
+  const openPermissions = showAll ? permissions : filterOpenPermissions(permissions);
 
   const commands = openPermissions.map((p) => {
     const commandName = p.command_name;

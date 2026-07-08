@@ -145,15 +145,27 @@
 
 ## 危险操作确认
 
-`hr.knowledge.addKnowledge` 是危险操作，必须执行三步确认：
+`hr.knowledge.addKnowledge` 是危险操作，新增知识库会向组织范围内发布内容。执行时必须遵循 [global-reference.md](../global-reference.md) 中的"危险操作确认协议"：
 
 1. **展示操作摘要**：标题、类型、分享范围组织名、分类（如有）、附件数量。
 2. **用户明确回复确认**（如 "确认" / "好的" / "发布"）。
-3. **加 `--yes` 执行**：
+3. **在原命令末尾追加 `--yes` 执行**：
 
    ```bash
    yulong hr knowledge addKnowledge --json '{"title":"...","type":11,"content":"...","scopeOrgId":"...","classification":1,"attachments":"..."}' --yes --format json
    ```
+
+> 当前御龙 CLI 在不带 `--yes` 时会返回 `error.type === "validation_error"` 并提示"危险操作 hr.knowledge.addKnowledge，请添加 --yes 确认"。看到该提示后必须向用户确认，禁止自动加 `--yes` 重试。
+
+### 先用 `--dry-run` 预览
+
+用户想先 review 具体请求时，可先执行：
+
+```bash
+yulong hr knowledge addKnowledge --json '{"title":"...",...}' --dry-run --format json
+```
+
+`--dry-run` 不触发门禁，会打印解析后的请求详情。
 
 ## 命令示例
 

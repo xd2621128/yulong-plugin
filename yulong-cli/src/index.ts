@@ -8,9 +8,11 @@ import { resolveUser } from './user-resolver';
 import * as auth from './auth';
 import { schemaCommand } from './schema';
 import { businessCommand } from './commands/business';
-import { getApiPermission } from './db';
+import { getApiPermission, listApiPermissions, listApiPermissionsByPrefix } from './db';
 import { getCommandParams, getCommandExample } from './command-params';
 import { applyFields } from './formatter';
+import { filterOpenPermissions } from './permission-filter';
+import { resolveCommandAndArgs } from './command-resolver';
 import type { GlobalOptions, CommandContext, ApiPermission } from './types';
 
 const SPECIAL_COMMANDS = ['auth', 'schema'];
@@ -133,6 +135,60 @@ function printCommandHelp(commandName: string, permission: ApiPermission | null)
     console.log(`\n用法:`);
     console.log(`  yulong ${cliCommand} --json '{"...":"..."}' --format json`);
   }
+
+  console.log(`
+全局选项:
+  --token <token>     外部 accessToken（Token 模式，CLI 不管理 token 生命周期）
+  --json <json>       请求参数 JSON 字符串
+  --json-file <path>  请求参数 JSON 文件路径
+  --file <path>       上传文件路径（用于文件上传类命令）
+  --format <format>   输出格式: json / table / raw（默认 json）
+  --fields <list>     筛选输出字段（逗号分隔）
+  --resource-mark <mark>  覆盖 X-ResourceMark 请求头
+  --verbose, -v       详细日志
+  --debug             调试日志
+  --dry-run           仅显示解析结果，不执行
+  --yes, -y           危险操作确认（跳过交互）
+  --timeout <sec>     HTTP 超时（秒，默认 30）
+`);
+}
+
+function printModuleHelp(moduleName: string, permissions: ApiPermission[]): void {
+  // 只显示已开放的命令，与 yulong schema 的过滤标准保持一致
+  const openPermissions = filterOpenPermissions(permissions);
+
+  const MAX_DISPLAY = 50;
+  const displayPermissions = openPermissions.slice(0, MAX_DISPLAY);
+  const hiddenCount = openPermissions.length - displayPermissions.length;
+
+  console.log(`
+模块: ${moduleName}
+`);
+  console.log(`该模块下已开放 ${openPermissions.length} 个命令（共配置 ${permissions.length} 个）：\n`);
+
+  if (displayPermissions.length === 0) {
+    console.log('  （当前模块没有已开放命令）');
+  }
+  else {
+    const maxNameLen = Math.max(...displayPermissions.map(p => p.command_name.length));
+    for (const p of displayPermissions) {
+      const pad = ' '.repeat(maxNameLen - p.command_name.length);
+      console.log(`  ${p.command_name}${pad}  ${p.description || ''}`);
+    }
+
+    if (hiddenCount > 0) {
+      console.log(`\n  ... 还有 ${hiddenCount} 个已开放命令未显示`);
+      console.log(`  使用 "yulong schema --json '{"module":"${moduleName === 'project' ? 'pm' : moduleName}"}' --format json" 查看全部`);
+    }
+  }
+
+  console.log(`
+查看某个命令的详细用法：
+  yulong ${moduleName}.<command> --help
+
+示例:
+  yulong ${moduleName}.business.list --help
+`);
 
   console.log(`
 全局选项:
@@ -311,19 +367,6 @@ async function dispatchSpecialCommand(
   }
 }
 
-function resolveCommandAndArgs(positionals: string[]): { command: string; args: string[] } {
-  // 从最长到最短匹配 api_permissions 中已注册的命令
-  for (let i = positionals.length; i > 0; i--) {
-    const candidate = positionals.slice(0, i).join('.');
-    if (getApiPermission(candidate)) {
-      return { command: candidate, args: positionals.slice(i) };
-    }
-  }
-
-  // 未匹配到已知命令时，全部视为命令名（无路径参数）
-  return { command: positionals.join('.'), args: [] };
-}
-
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
 
@@ -342,9 +385,28 @@ async function main(): Promise<void> {
         printAuthHelp(positionals[1]);
       }
       else {
-        const { command: commandName } = resolveCommandAndArgs(positionals);
+        const { command: commandName, args: pathArgs } = resolveCommandAndArgs(positionals);
         const permission = getApiPermission(commandName);
-        printCommandHelp(commandName, permission);
+        if (permission) {
+          // 匹配到具体命令
+          printCommandHelp(commandName, permission);
+        }
+        else if (pathArgs.length === 0) {
+          // 未匹配到具体命令，且没有多余参数，尝试按模块名或命令前缀列出命令
+          let modulePermissions = listApiPermissions(commandName);
+          if (modulePermissions.length === 0) {
+            modulePermissions = listApiPermissionsByPrefix(commandName);
+          }
+          if (modulePermissions.length > 0) {
+            printModuleHelp(commandName, modulePermissions);
+          }
+          else {
+            printCommandHelp(commandName, null);
+          }
+        }
+        else {
+          printCommandHelp(commandName, null);
+        }
       }
     }
     else {

@@ -46,7 +46,29 @@ yulong <cmd> --format json --verbose ...
 - 向用户报告完整错误信息
 - 禁止自行构造替代请求
 
-### Step 5: 仍然失败
+### Step 5: 危险操作确认
+
+如果 `error.type === "validation_error"` 且消息包含"危险操作"和"请添加 --yes 确认"：
+- 这是 CLI 的危险操作门禁
+- **禁止**自动加 `--yes` 静默重试
+- 向用户展示操作摘要（操作类型 + 目标对象 + 影响范围）
+- 用户明确同意后，在原命令末尾追加 `--yes` 重试
+- 用户拒绝则终止流程
+
+详细协议见 [global-reference.md](../global-reference.md) 的"危险操作确认协议"章节。
+
+### Step 6: 按业务域查看详细恢复
+
+通用 recovery 流程无法覆盖所有业务错误时，参考对应业务域的错误恢复文档：
+
+| 业务域 | 文档 |
+|---|---|
+| 认证相关 | [error-recovery-auth.md](./products/error-recovery-auth.md) |
+| 用户/角色/组织/权限 | [error-recovery-rbac.md](./products/error-recovery-rbac.md) |
+| 商机/合同/收入/合作伙伴 | [error-recovery-project.md](./products/error-recovery-project.md) |
+| 通报/知识库/文件 | [error-recovery-hr.md](./products/error-recovery-hr.md) |
+
+### Step 7: 仍然失败
 
 如果以上步骤都无法恢复：
 - 完整输出命令、参数、错误 envelope、stderr 日志

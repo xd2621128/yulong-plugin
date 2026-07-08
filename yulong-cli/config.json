@@ -3,5 +3,5 @@
   "timeout": 30,
   "dbPath": "",
   "userDbPath": "",
-  "logLevel": ""
+  "logLevel": "info"
 }

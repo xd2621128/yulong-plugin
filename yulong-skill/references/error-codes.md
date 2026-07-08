@@ -49,3 +49,12 @@ CLI 统一 envelope 的 `error.type` 字段取值如下：
 - 遇到 `auth_required` 时，不要用假 token 或绕过认证
 - 遇到 `permission_denied` 时，不要尝试其他接口绕过
 - 遇到 `backend_error` 时，不要自行构造请求重试
+
+## 按业务域查看详细恢复
+
+| 业务域 | 详细恢复文档 |
+|---|---|
+| 认证相关 | [error-recovery-auth.md](./products/error-recovery-auth.md) |
+| 用户/角色/组织/权限 | [error-recovery-rbac.md](./products/error-recovery-rbac.md) |
+| 商机/合同/收入/合作伙伴 | [error-recovery-project.md](./products/error-recovery-project.md) |
+| 通报/知识库/文件 | [error-recovery-hr.md](./products/error-recovery-hr.md) |
