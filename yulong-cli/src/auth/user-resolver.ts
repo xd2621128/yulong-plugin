@@ -2,8 +2,8 @@ import { Database } from 'bun:sqlite';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { loadConfig } from './config';
-import type { GlobalOptions } from './types';
+import { loadConfig } from '../core/config';
+import type { GlobalOptions } from '../core/types';
 
 function getYuxiaolongDbPath(): string | undefined {
   if (process.platform !== 'darwin') {

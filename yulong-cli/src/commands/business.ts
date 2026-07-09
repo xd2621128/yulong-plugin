@@ -1,11 +1,11 @@
-import { getApiPermission } from '../db';
-import { checkPermission, hasToken, refreshUserPermissions, fetchUserPermissions } from '../permission-guard';
-import { buildRequest, request } from '../api-client';
-import { ErrorType } from '../envelope';
-import * as logger from '../logger';
+import { getApiPermission } from '../core/db';
+import { checkPermission, hasToken, refreshUserPermissions, fetchUserPermissions } from '../auth/permission-guard';
+import { buildRequest, request } from '../core/api-client';
+import { ErrorType } from '../core/envelope';
+import * as logger from '../core/logger';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { CommandContext } from '../types';
+import type { CommandContext } from '../core/types';
 
 /**
  * 判断命令是否为文件上传类命令

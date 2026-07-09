@@ -1,19 +1,20 @@
 #!/usr/bin/env bun
 import * as fs from 'fs';
 import { parseArgs } from 'util';
-import { success, error, printEnvelope, ErrorType } from './envelope';
-import { configureLogger, info, error as logError } from './logger';
-import { loadConfig, getBaseUrl } from './config';
-import { resolveUser } from './user-resolver';
-import * as auth from './auth';
-import { schemaCommand } from './schema';
+import packageJson from '../package.json';
+import { success, error, printEnvelope, ErrorType } from './core/envelope';
+import { configureLogger, info, error as logError } from './core/logger';
+import { loadConfig, getBaseUrl } from './core/config';
+import { resolveUser } from './auth/user-resolver';
+import * as auth from './commands/auth';
+import { schemaCommand } from './commands/schema';
 import { businessCommand } from './commands/business';
-import { getApiPermission, listApiPermissions, listApiPermissionsByPrefix } from './db';
-import { getCommandParams, getCommandExample } from './command-params';
-import { applyFields } from './formatter';
-import { filterOpenPermissions } from './permission-filter';
-import { resolveCommandAndArgs } from './command-resolver';
-import type { GlobalOptions, CommandContext, ApiPermission } from './types';
+import { getApiPermission, listApiPermissions, listApiPermissionsByPrefix } from './core/db';
+import { getCommandParams, getCommandExample } from './commands/command-params';
+import { applyFields } from './core/formatter';
+import { filterOpenPermissions } from './auth/permission-filter';
+import { resolveCommandAndArgs } from './commands/command-resolver';
+import type { GlobalOptions, CommandContext, ApiPermission } from './core/types';
 
 const SPECIAL_COMMANDS = ['auth', 'schema'];
 
@@ -44,6 +45,7 @@ function printHelp(): void {
   --yes, -y           危险操作确认（跳过交互）
   --timeout <sec>     HTTP 超时（秒，默认 30）
   --help, -h          显示帮助
+  --version           显示版本
 
 示例:
   yulong schema
@@ -178,16 +180,17 @@ function printModuleHelp(moduleName: string, permissions: ApiPermission[]): void
 
     if (hiddenCount > 0) {
       console.log(`\n  ... 还有 ${hiddenCount} 个已开放命令未显示`);
-      console.log(`  使用 "yulong schema --json '{"module":"${moduleName === 'project' ? 'pm' : moduleName}"}' --format json" 查看全部`);
+      console.log(`  使用 "yulong schema --json '{"module":"${moduleName}"}' --format json" 查看全部`);
     }
   }
 
+  const exampleCommand = openPermissions[0]?.command_name || `${moduleName}.<command>`;
   console.log(`
 查看某个命令的详细用法：
   yulong ${moduleName}.<command> --help
 
 示例:
-  yulong ${moduleName}.business.list --help
+  yulong ${exampleCommand.replace(/\./g, ' ')} --help
 `);
 
   console.log(`
@@ -204,6 +207,25 @@ function printModuleHelp(moduleName: string, permissions: ApiPermission[]): void
   --dry-run           仅显示解析结果，不执行
   --yes, -y           危险操作确认（跳过交互）
   --timeout <sec>     HTTP 超时（秒，默认 30）
+`);
+}
+
+function printSchemaHelp(): void {
+  console.log(`
+御龙 CLI — schema 命令
+
+用法:
+  yulong schema [选项]
+
+说明:
+  列出当前已开放的命令。支持以下 JSON 选项：
+    --json '{"module":"project"}'   按模块/命令前缀过滤
+    --json '{"all":true}'            显示全部命令（含未开放）
+
+示例:
+  yulong schema --format json
+  yulong schema --json '{"module":"project"}' --format json
+  yulong schema --json '{"all":true}' --format json
 `);
 }
 
@@ -280,6 +302,7 @@ function parseGlobalOptions(argv: string[]): { options: GlobalOptions; positiona
       yes: { type: 'boolean', short: 'y', default: false },
       timeout: { type: 'string', default: '30' },
       help: { type: 'boolean', short: 'h', default: false },
+      version: { type: 'boolean', default: false },
     },
     strict: false,
     allowPositionals: true,
@@ -300,6 +323,7 @@ function parseGlobalOptions(argv: string[]): { options: GlobalOptions; positiona
       yes: values.yes as boolean,
       timeout: parseInt(values.timeout as string, 10) || 30,
       help: values.help as boolean,
+      version: values.version as boolean,
     },
     positionals,
   };
@@ -377,12 +401,20 @@ async function main(): Promise<void> {
 
   const { options, positionals } = parseGlobalOptions(argv);
 
+  if (options.version) {
+    console.log(packageJson.version);
+    return;
+  }
+
   // 命令级帮助：yulong <command...> --help
   if (options.help) {
     if (positionals.length > 0) {
       const first = positionals[0];
       if (first === 'auth') {
         printAuthHelp(positionals[1]);
+      }
+      else if (first === 'schema') {
+        printSchemaHelp();
       }
       else {
         const { command: commandName, args: pathArgs } = resolveCommandAndArgs(positionals);

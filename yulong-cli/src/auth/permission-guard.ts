@@ -1,10 +1,10 @@
-import { getUserPermissions, setUserPermissions } from './db';
+import { getUserPermissions, setUserPermissions } from '../core/db';
 import { getAccessToken } from './token-manager';
-import { loadConfig } from './config';
-import { refreshAccessToken } from './api-client';
-import { ErrorType } from './envelope';
-import * as logger from './logger';
-import type { PermissionCheckResult } from './types';
+import { loadConfig } from '../core/config';
+import { refreshAccessToken } from '../core/api-client';
+import { ErrorType } from '../core/envelope';
+import * as logger from '../core/logger';
+import type { PermissionCheckResult } from '../core/types';
 
 /**
  * 检查用户权限

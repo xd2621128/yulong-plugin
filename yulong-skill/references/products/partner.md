@@ -164,7 +164,7 @@ yulong project partner page --format json --json '{
 - **禁止猜测 `status` 枚举值**：`status` 是后端返回的字符串，前端没有枚举映射。Agent 必须从返回数据中观察实际取值。
   - 实际环境中已观察到的取值示例：`"在库"`、`"已退出"`。
   - 不同环境/不同时间可能新增其他取值，Agent 不得以这两个值作为唯一判断标准。
-- **禁止直接按中文名称查询 `deptId`**：必须先调 `project crmField dept`。
+- **禁止直接按中文名称查询 `deptId`**：必须先调 `yulong project crmField dept`。
 - **大数据量必须分页**：单次 `pageSize` 不超过 100。
 
 ## 意图映射
@@ -174,9 +174,9 @@ yulong project partner page --format json --json '{
 | "生态合作伙伴" / "查生态合作伙伴" | `yulong project partner page` + `type=1` | 明确指定生态页签 |
 | "SP/SI合作伙伴" / "SP/SI" / "查 SP/SI" | `yulong project partner page` + `type=2` | 明确指定 SP/SI 页签 |
 | "合作伙伴列表" / "查合作伙伴" / "列出合作伙伴" | `yulong project partner page` | 通常需要追问页签 |
-| "XX 大区的合作伙伴" | 先 `project crmField dept`，再 `project partner page` | 用户说"XX 大区"通常想按部门筛选，但实际部门名称不一定是"XX 大区" |
-| "按时间查合作伙伴" / "XX 年引入的合作伙伴" | `project partner page` + `introduceTimeBegin/End` | 按引入时间筛选 |
-| "合作伙伴变动" / "新增/退出合作伙伴统计" | `project partner page` + 时间范围 + 本地分析 | 按「统计与变动分析」处理 |
+| "XX 大区的合作伙伴" | 先 `yulong project crmField dept`，再 `yulong project partner page` | 用户说"XX 大区"通常想按部门筛选，但实际部门名称不一定是"XX 大区" |
+| "按时间查合作伙伴" / "XX 年引入的合作伙伴" | `yulong project partner page` + `introduceTimeBegin/End` | 按引入时间筛选 |
+| "合作伙伴变动" / "新增/退出合作伙伴统计" | `yulong project partner page` + 时间范围 + 本地分析 | 按「统计与变动分析」处理 |
 | "合作伙伴"（未明确生态/SP/SI） | — | **必须追问用户确认是生态合作伙伴还是 SP/SI 合作伙伴** |
 
 ## 边界条件与注意事项
@@ -290,7 +290,7 @@ yulong project partner page --format json --json '{
 
 ## 禁止事项
 
-- 禁止将中文部门名称直接填入 `deptId`，必须先查 `project crmField dept`
+- 禁止将中文部门名称直接填入 `deptId`，必须先查 `yulong project crmField dept`
 - 禁止在页签未明确时构造查询
 - 禁止猜测 `status` 字段的枚举值，必须从实际响应中观察
 - 禁止单次拉取超过 100 条，大数据量必须分页

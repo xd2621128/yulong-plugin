@@ -1,4 +1,4 @@
-import { getApiPermission } from './db';
+import { getApiPermission } from '../core/db';
 
 /**
  * 从位置参数中解析出已注册的命令名和剩余的路径参数。

@@ -11,7 +11,7 @@ metadata:
 
 # 御龙 HR Skill
 
-**执行本 Skill 前，必须先读 [`yulong-shared`](../yulong-shared/SKILL.md）中的认证模式、Token 模式、错误处理通则和危险操作确认规则。**
+**执行本 Skill 前，必须先读 [`yulong-shared`](../yulong-shared/SKILL.md) 中的认证模式、Token 模式、错误处理通则和危险操作确认规则。**
 
 ## 何时使用
 
@@ -25,7 +25,7 @@ metadata:
 |---|---|---|
 | 通报列表 | `yulong hr article findReportPage --format json` | 默认按发布时间倒序 |
 | 通报详情 | `yulong hr article detail <id> --format json` | id 从列表或用户话语中提取 |
-| 下载通报附件 | 先 `hr article detail <id>`，再 `hr file download <fileId>` | 逐个下载 attachments |
+| 下载通报附件 | 先 `yulong hr article detail <id>`，再 `yulong hr file download <fileId>` | 逐个下载 attachments |
 | 知识库组织树 | `yulong hr knowledge getOrgTree --format json` | 获取分享范围 |
 | 知识库分类 | `yulong hr knowledge classifyList --format json` | 模板下载/常见问题解答类型需要 |
 | 新增知识库 | `yulong hr knowledge addKnowledge --format json` | 危险操作，需三步确认 |
@@ -38,7 +38,7 @@ metadata:
 
 ## 危险操作
 
-- `hr.knowledge.addKnowledge` 是危险操作，新增知识库会向组织范围内发布内容。
+- `yulong hr.knowledge.addKnowledge` 是危险操作，新增知识库会向组织范围内发布内容。
 - 必须执行三步确认：展示摘要 → 用户明确回复确认 → 加 `--yes` 执行。
 - 必填字段（`title`、`type`、`content`、`scopeOrgId`）缺失时必须追问，禁止猜测。
 

@@ -1,15 +1,15 @@
-import { refreshUserPermissions, fetchUserPermissions } from './permission-guard';
-import { loadTokens, clearTokens, isAccessTokenExpired } from './token-manager';
-import { loadConfig } from './config';
-import { resolveUser } from './user-resolver';
-import { thirdPartyLogin } from './auth-core';
-import { ErrorType } from './envelope';
-import * as logger from './logger';
-import type { CommandContext } from './types';
+import { refreshUserPermissions, fetchUserPermissions } from '../auth/permission-guard';
+import { loadTokens, clearTokens, isAccessTokenExpired } from '../auth/token-manager';
+import { loadConfig } from '../core/config';
+import { resolveUser } from '../auth/user-resolver';
+import { thirdPartyLogin } from '../auth/auth-core';
+import { ErrorType } from '../core/envelope';
+import * as logger from '../core/logger';
+import type { CommandContext } from '../core/types';
 
-function assertNotTokenMode(context: CommandContext): void {
+function assertNotTokenMode(subCommand: string, context: CommandContext): void {
   if (context.options.token) {
-    const err = new Error('当前使用 --token 模式，auth 子命令不可用');
+    const err = new Error(`当前使用 --token 模式，auth ${subCommand} 不可用（仍可使用 auth status / refresh-permissions）`);
     err.name = ErrorType.VALIDATION_ERROR;
     throw err;
   }
@@ -21,7 +21,7 @@ function assertNotTokenMode(context: CommandContext): void {
  * 调用 POST /hr/auth/extends/login/third/party4UserId
  */
 async function login(context: CommandContext): Promise<unknown> {
-  assertNotTokenMode(context);
+  assertNotTokenMode('login', context);
 
   const loginName = await resolveUser(context.options);
   await thirdPartyLogin(loginName, loadConfig().timeout || 30);
@@ -48,7 +48,7 @@ async function login(context: CommandContext): Promise<unknown> {
  * 登出
  */
 async function logout(context: CommandContext): Promise<unknown> {
-  assertNotTokenMode(context);
+  assertNotTokenMode('logout', context);
   clearTokens();
   logger.info('已清除本地 token');
   return { status: 'logged_out' };
@@ -111,7 +111,7 @@ async function refreshPermissions(context: CommandContext): Promise<unknown> {
  * 切换组织（骨架，待 SSO/组织切换接口提供后实现）
  */
 async function switchOrg(context: CommandContext): Promise<unknown> {
-  assertNotTokenMode(context);
+  assertNotTokenMode('switch-org', context);
 
   let payload: Record<string, unknown> = {};
   if (context.options.json) {
@@ -144,6 +144,12 @@ async function switchOrg(context: CommandContext): Promise<unknown> {
  * 处理 auth 子命令
  */
 export async function handle(subCommand: string, context: CommandContext): Promise<unknown> {
+  if (!subCommand) {
+    const err = new Error('请指定 auth 子命令。可用: login, logout, status, switch-org, refresh-permissions');
+    err.name = ErrorType.VALIDATION_ERROR;
+    throw err;
+  }
+
   switch (subCommand) {
     case 'login':
       return login(context);

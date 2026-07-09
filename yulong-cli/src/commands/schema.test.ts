@@ -2,9 +2,9 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { schemaCommand } from './schema';
-import { closeDb, upsertApiPermission } from './db';
-import type { ApiPermission, CommandContext } from './types';
+import { schemaCommand } from '../commands/schema';
+import { closeDb, upsertApiPermission } from '../core/db';
+import type { ApiPermission, CommandContext } from '../core/types';
 
 function createPermission(overrides: Partial<ApiPermission> = {}): Omit<ApiPermission, 'id'> {
   return {
@@ -100,6 +100,37 @@ describe('schemaCommand', () => {
     expect(result.total).toBe(2);
     expect(result.commands.map(c => c.name)).toContain('rbac.user');
     expect(result.commands.map(c => c.name)).toContain('rbac.role');
+  });
+
+  it('filters by command prefix when module column differs', async () => {
+    upsertApiPermission(createPermission({
+      command_name: 'project.business.list',
+      module: 'pm',
+      required_permissions: JSON.stringify(['project.business.list']),
+    }));
+    upsertApiPermission(createPermission({
+      command_name: 'project.partner.page',
+      module: 'pm',
+      required_permissions: JSON.stringify(['project.partner.page']),
+    }));
+    upsertApiPermission(createPermission({ command_name: 'hr.article', module: 'hr' }));
+
+    const result = (await schemaCommand(context('{"module":"project"}'))) as { total: number; commands: Array<{ name: string }> };
+    expect(result.total).toBe(2);
+    expect(result.commands.map(c => c.name)).toContain('project.business.list');
+    expect(result.commands.map(c => c.name)).toContain('project.partner.page');
+  });
+
+  it('still supports exact module filtering', async () => {
+    upsertApiPermission(createPermission({
+      command_name: 'project.business.list',
+      module: 'pm',
+      required_permissions: JSON.stringify(['project.business.list']),
+    }));
+
+    const result = (await schemaCommand(context('{"module":"pm"}'))) as { total: number; commands: Array<{ name: string }> };
+    expect(result.total).toBe(1);
+    expect(result.commands[0].name).toBe('project.business.list');
   });
 
   it('shows all permissions when all flag is true', async () => {

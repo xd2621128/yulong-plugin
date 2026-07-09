@@ -11,7 +11,7 @@ metadata:
 
 # 御龙 RBAC Skill
 
-**执行本 Skill 前，必须先读 [`yulong-shared`](../yulong-shared/SKILL.md）中的认证模式、Token 模式、错误处理通则。**
+**执行本 Skill 前，必须先读 [`yulong-shared`](../yulong-shared/SKILL.md) 中的认证模式、Token 模式、错误处理通则。**
 
 ## 何时使用
 
@@ -23,14 +23,12 @@ metadata:
 | 用户目标 | 命令 | 说明 |
 |---|---|---|
 | 用户列表 / 用户分页 | `yulong rbac user userPage --json '{"currentPage":1,"pageSize":10}' --format json` | 分页参数必须追问 |
-| 用户详情 | `yulong rbac user info` | 暂不可用，需先确认是否实现 |
 
 ## 信息缺失时的追问
 
 | 命令 | 缺失信息 | 追问示例 |
 |---|---|---|
-| `rbac user userPage` | 分页参数 | "请提供页码 currentPage 和每页条数 pageSize" |
-| `rbac user info` | 用户 ID | "请提供要查询的用户 ID" |
+| `yulong rbac user userPage` | 分页参数 | "请提供页码 currentPage 和每页条数 pageSize" |
 
 ## 详细参考
 

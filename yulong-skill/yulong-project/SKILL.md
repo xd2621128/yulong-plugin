@@ -11,7 +11,7 @@ metadata:
 
 # 御龙项目 Skill
 
-**执行本 Skill 前，必须先读 [`yulong-shared`](../yulong-shared/SKILL.md）中的认证模式、Token 模式、错误处理通则。**
+**执行本 Skill 前，必须先读 [`yulong-shared`](../yulong-shared/SKILL.md) 中的认证模式、Token 模式、错误处理通则。**
 
 ## 何时使用
 
@@ -40,19 +40,19 @@ metadata:
 
 ## 字典联动规则
 
-用户说"XX 大区"通常想按**部门**筛选，但部门字典里的 `dname` 不一定就叫"XX 大区"（可能是"XX 事业部/产品部/营销中心"等），必须以 `project crmField dept` 的查询结果为准；找不到匹配时必须追问用户，禁止自动把"大区"当作"区域"。
+用户说"XX 大区"通常想按**部门**筛选，但部门字典里的 `dname` 不一定就叫"XX 大区"（可能是"XX 事业部/产品部/营销中心"等），必须以 `yulong project crmField dept` 的查询结果为准；找不到匹配时必须追问用户，禁止自动把"大区"当作"区域"。
 
 | 筛选维度 | 先查字典 | 再执行命令 |
 |---|---|---|
-| 部门/XX 大区 + 商机 | `project crmField dept` | `project business list` |
-| 区域/XX 区域 + 商机 | `project crmField region` | `project business list` |
-| 客户属地/省/市 + 商机 | `project crmField province` | `project business list` |
-| 产品田 + 商机 | `project crmField productField` | `project business list` |
-| 营销田总监 + 商机 | `project crmField marketField` | `project business list` |
-| 部门/XX 大区 + 合同 | `project crmField dept` | `project origin-contract forward list` |
-| 研发田 + 合同 | `project system pm-index listRDField` | `project origin-contract forward list` |
-| 部门/XX 大区 + 收入清单 | `project crmField dept` | `project edaLabel beforeSplit/afterSplit` |
-| 部门/XX 大区 + 合作伙伴 | `project crmField dept` | `project partner page` |
+| 部门/XX 大区 + 商机 | `yulong project crmField dept` | `yulong project business list` |
+| 区域/XX 区域 + 商机 | `yulong project crmField region` | `yulong project business list` |
+| 客户属地/省/市 + 商机 | `yulong project crmField province` | `yulong project business list` |
+| 产品田 + 商机 | `yulong project crmField productField` | `yulong project business list` |
+| 营销田总监 + 商机 | `yulong project crmField marketField` | `yulong project business list` |
+| 部门/XX 大区 + 合同 | `yulong project crmField dept` | `yulong project origin-contract forward list` |
+| 研发田 + 合同 | `yulong project system pm-index listRDField` | `yulong project origin-contract forward list` |
+| 部门/XX 大区 + 收入清单 | `yulong project crmField dept` | `yulong project edaLabel beforeSplit/afterSplit` |
+| 部门/XX 大区 + 合作伙伴 | `yulong project crmField dept` | `yulong project partner page` |
 
 ## 歧义处理
 

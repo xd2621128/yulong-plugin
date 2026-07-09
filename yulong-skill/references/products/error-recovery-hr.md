@@ -23,7 +23,7 @@ HR 模块包含通报查询/详情/附件下载、知识库新增、通用文件
 
 ## 按命令的常见错误
 
-### `hr article findReportPage` / `hr article detail`
+### `yulong hr article findReportPage` / `yulong hr article detail`
 
 | 现象 | 可能原因 | 恢复动作 |
 |---|---|---|
@@ -32,16 +32,16 @@ HR 模块包含通报查询/详情/附件下载、知识库新增、通用文件
 | 正文图片无法显示 | 图片使用相对路径 | 保留原始 HTML，向用户说明需在后端 baseUrl 环境下查看 |
 | 附件下载失败 | `fileId` 提取错误或文件已删除 | 从 `colRealpath` 最后一段提取 fileId，确认文件存在 |
 
-### `hr knowledge addKnowledge`
+### `yulong hr knowledge addKnowledge`
 
 | 现象 | 可能原因 | 恢复动作 |
 |---|---|---|
 | 未加 `--yes` 时 CLI 返回危险操作提示 | 危险操作门禁 | 展示摘要 → 用户确认 → 加 `--yes` 重试 |
 | `permission_denied` | 缺少 `KNOWLEDGE` 权限 | 终止并说明缺失权限 |
 | `backend_error` | 标题超长、正文为空、`type` 不合法、`scopeOrgId` 无效、`classification` 缺失 | 检查必填字段：`title`（≤40 字）、`type`、`content`、`scopeOrgId`；`type=16/17` 时必须提供 `classification` |
-| `scopeOrgId` 无效 | 误用了树节点的 `id` 而非 `orgNumId` | 重新查询 `hr knowledge getOrgTree`，使用 `orgNumId` |
+| `scopeOrgId` 无效 | 误用了树节点的 `id` 而非 `orgNumId` | 重新查询 `yulong hr knowledge getOrgTree`，使用 `orgNumId` |
 
-### `hr file download` / `hr file upload`
+### `yulong hr file download` / `yulong hr file upload`
 
 | 现象 | 可能原因 | 恢复动作 |
 |---|---|---|

@@ -1,6 +1,6 @@
 # 文件（File）
 
-御龙系统的通用文件上传/下载接口。通报、知识库等模块的附件下载都复用 `hr.file.download`；`hr.file.upload` 是通用的附件上传接口。
+御龙系统的通用文件上传/下载接口。通报、知识库等模块的附件下载都复用 `yulong hr.file.download`；`yulong hr.file.upload` 是通用的附件上传接口。
 
 ## 命令映射
 
@@ -14,13 +14,13 @@
 
 | 命令 | 本地权限 | match_mode | ResourceMark | 说明 |
 |------|----------|------------|--------------|------|
-| `hr.file.download` | `["all"]` | `all` | — | 对任意已登录用户开放，下载时仍需 token |
-| `hr.file.upload` | `["all"]` | `all` | — | 对任意已登录用户开放，上传时仍需 token |
-| `hr.file.upload.return.attachment` | `["all"]` | `all` | — | 对任意已登录用户开放，上传时仍需 token |
+| `yulong hr.file.download` | `["all"]` | `all` | — | 对任意已登录用户开放，下载时仍需 token |
+| `yulong hr.file.upload` | `["all"]` | `all` | — | 对任意已登录用户开放，上传时仍需 token |
+| `yulong hr.file.upload.return.attachment` | `["all"]` | `all` | — | 对任意已登录用户开放，上传时仍需 token |
 
 ## 参数说明
 
-### `hr.file.download <id>`
+### `yulong hr.file.download <id>`
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
@@ -28,7 +28,7 @@
 
 > `id` 必须作为位置参数传入：`yulong hr file download 1894319070076387331 --format json`，不要直接调用完整的 `colRealpath`。
 
-### `hr.file.upload`
+### `yulong hr.file.upload`
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
@@ -42,7 +42,7 @@ yulong hr file upload --file /path/to/file.pdf --format json
 
 CLI 会读取本地文件并以 `multipart/form-data` 形式上传，字段名为 `file`，与前端 `FileUploaderImg` 组件保持一致。
 
-### `hr.file.upload.return.attachment`
+### `yulong hr.file.upload.return.attachment`
 
 如果需要后端直接返回附件对象（含 `fileId`、`name`、`url` 等），可使用：
 
@@ -68,7 +68,7 @@ yulong hr file upload return attachment --file /path/to/file.pdf --format json
 
 ### 返回附件对象
 
-`hr.file.upload.return.attachment` 成功时返回 `AttachmentVO`：
+`yulong hr.file.upload.return.attachment` 成功时返回 `AttachmentVO`：
 
 ```typescript
 {
@@ -82,14 +82,14 @@ yulong hr file upload return attachment --file /path/to/file.pdf --format json
 }
 ```
 
-> 通报场景目前**只涉及附件下载**，不涉及通过 `hr.file.upload` 上传附件。通报的附件上传由前端/业务接口（如发文/编辑页面）自行处理。
+> 通报场景目前**只涉及附件下载**，不涉及通过 `yulong hr.file.upload` 上传附件。通报的附件上传由前端/业务接口（如发文/编辑页面）自行处理。
 
 ## 错误处理
 
 - `permission_denied`：用户未登录，或 token 已过期。
 - `backend_error`：文件不存在、已被删除、或后端存储异常。
-- `hr.file.download` 返回空或失败：检查 `fileId` 是否为 `colRealpath` 的最后一段。
-- `hr.file.upload` 返回空或失败：检查 `--file` 路径是否存在、是否为普通文件。
+- `yulong hr.file.download` 返回空或失败：检查 `fileId` 是否为 `colRealpath` 的最后一段。
+- `yulong hr.file.upload` 返回空或失败：检查 `--file` 路径是否存在、是否为普通文件。
 
 ## 禁止事项
 

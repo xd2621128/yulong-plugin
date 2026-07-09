@@ -55,7 +55,7 @@ yulong <cmd> --format json --verbose ...
 - 用户明确同意后，在原命令末尾追加 `--yes` 重试
 - 用户拒绝则终止流程
 
-详细协议见 [global-reference.md](../global-reference.md) 的"危险操作确认协议"章节。
+详细协议见 [global-reference.md](./global-reference.md) 的"危险操作确认协议"章节。
 
 ### Step 6: 按业务域查看详细恢复
 

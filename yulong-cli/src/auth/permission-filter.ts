@@ -1,4 +1,4 @@
-import type { ApiPermission } from './types';
+import type { ApiPermission } from '../core/types';
 
 /**
  * 判断一个命令是否已开放

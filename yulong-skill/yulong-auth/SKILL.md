@@ -11,7 +11,7 @@ metadata:
 
 # 御龙认证 Skill
 
-**执行本 Skill 前，必须先读 [`yulong-shared`](../yulong-shared/SKILL.md）中的认证模式、Token 模式、错误处理通则。**
+**执行本 Skill 前，必须先读 [`yulong-shared`](../yulong-shared/SKILL.md) 中的认证模式、Token 模式、错误处理通则。**
 
 ## 何时使用
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { filterOpenPermissions, isOpenPermission } from './permission-filter';
-import type { ApiPermission } from './types';
+import type { ApiPermission } from '../core/types';
 
 function createPermission(overrides: Partial<ApiPermission> = {}): ApiPermission {
   return {

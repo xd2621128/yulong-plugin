@@ -32,21 +32,12 @@ function* walk(dir: string): Generator<string> {
 }
 
 function extractCommands(text: string): string[] {
-  // 匹配 "yulong <cmd segment> <cmd segment> ..." 形式的命令引用，把空格换成点号
+  // 匹配 "yulong <cmd segment> <cmd segment> ..." 形式的命令引用，把空格换成点号。
+  // 正则会在反引号、右括号、换行等非命令字符处自然停止，避免反引号包裹时提取异常。
   const commands: string[] = [];
-  const re = /yulong\s+/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const tokens: string[] = [];
-    let remaining = text.slice(match.index + match[0].length);
-    while (true) {
-      const tokenMatch = remaining.match(/^([a-zA-Z][a-zA-Z0-9_-]*)(?:\s+|$)/);
-      if (!tokenMatch) {
-        break;
-      }
-      tokens.push(tokenMatch[1]);
-      remaining = remaining.slice(tokenMatch[0].length);
-    }
+  const re = /yulong\s+([a-zA-Z][a-zA-Z0-9_-]*(?:\s+[a-zA-Z][a-zA-Z0-9_-]*)+)/g;
+  for (const match of text.matchAll(re)) {
+    const tokens = match[1].trim().split(/\s+/);
     if (tokens.length >= 2) {
       commands.push(tokens.join('.'));
     }

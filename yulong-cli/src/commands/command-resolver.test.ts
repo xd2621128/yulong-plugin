@@ -2,9 +2,9 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { resolveCommandAndArgs } from './command-resolver';
-import { closeDb, upsertApiPermission } from './db';
-import type { ApiPermission } from './types';
+import { resolveCommandAndArgs } from '../commands/command-resolver';
+import { closeDb, upsertApiPermission } from '../core/db';
+import type { ApiPermission } from '../core/types';
 
 function createPermission(overrides: Partial<ApiPermission> = {}): Omit<ApiPermission, 'id'> {
   return {

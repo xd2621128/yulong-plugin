@@ -13,11 +13,11 @@
 
 | 用户意图 | 使用 Skill | 主要命令 |
 |---|---|---|
-| 登录、登出、登录状态、刷新权限 | [`yulong-auth`](../../yulong-auth/SKILL.md) | `yulong auth login/logout/status/refresh-permissions` |
-| 用户、角色、组织、权限 | [`yulong-rbac`](../../yulong-rbac/SKILL.md) | `yulong rbac user userPage` |
-| 商机、合同、收入清单、合作伙伴 | [`yulong-project`](../../yulong-project/SKILL.md) | `yulong project business list`、`project origin-contract forward list`、`project edaLabel beforeSplit/afterSplit`、`project partner page` |
-| 通报、知识库、通用文件 | [`yulong-hr`](../../yulong-hr/SKILL.md) | `yulong hr article findReportPage/detail`、`hr knowledge addKnowledge`、`hr file download` |
-| 不确定该用哪个 / 认证失败 / 配置问题 | [`yulong-shared`](../../yulong-shared/SKILL.md) | 通用规则与错误恢复 |
+| 登录、登出、登录状态、刷新权限 | [`yulong-auth`](../yulong-auth/SKILL.md) | `yulong auth login/logout/status/refresh-permissions` |
+| 用户、角色、组织、权限 | [`yulong-rbac`](../yulong-rbac/SKILL.md) | `yulong rbac user userPage` |
+| 商机、合同、收入清单、合作伙伴 | [`yulong-project`](../yulong-project/SKILL.md) | `yulong project business list`、`yulong project origin-contract forward list`、`yulong project edaLabel beforeSplit/afterSplit`、`yulong project partner page` |
+| 通报、知识库、通用文件 | [`yulong-hr`](../yulong-hr/SKILL.md) | `yulong hr article findReportPage/detail`、`yulong hr knowledge addKnowledge`、`yulong hr file download` |
+| 不确定该用哪个 / 认证失败 / 配置问题 | [`yulong-shared`](../yulong-shared/SKILL.md) | 通用规则与错误恢复 |
 
 ## 跨 Skill 通用规则
 
@@ -25,16 +25,16 @@
 2. **所有命令必须加 `--format json`**：Skill 解析统一 envelope 输出。
 3. **禁止直接调用后端**：禁止使用 curl、HTTP API、浏览器直接访问御龙后端。
 4. **禁止编造标识符**：用户 ID、组织 ID、部门 ID 等必须从命令返回中提取。
-5. **危险操作需确认**：`hr.knowledge.addKnowledge` 等危险操作必须执行三步确认（展示摘要 → 用户确认 → 加 `--yes`）。
+5. **危险操作需确认**：`yulong hr.knowledge.addKnowledge` 等危险操作必须执行三步确认（展示摘要 → 用户确认 → 加 `--yes`）。
 6. **单次批量不超过 100 条**。
 
 ## 易混淆场景
 
 ### "部门/大区" vs "区域" vs "客户属地"
 
-- 用户说"XX 大区"通常想按**部门**筛选，对应 `depId`，必须先查 `project crmField dept`。
-- 用户说"XX 区域"才指区域字典，对应 `regionId`，查 `project crmField region`。
-- 用户说"XX 省/市"指客户属地，对应 `areaId`，查 `project crmField province`。
+- 用户说"XX 大区"通常想按**部门**筛选，对应 `depId`，必须先查 `yulong project crmField dept`。
+- 用户说"XX 区域"才指区域字典，对应 `regionId`，查 `yulong project crmField region`。
+- 用户说"XX 省/市"指客户属地，对应 `areaId`，查 `yulong project crmField province`。
 - **禁止**在部门字典找不到匹配时，自动把"XX 大区"当作"XX 区域"处理，必须追问用户确认。
 
 ### "收入清单"必须明确拆分前/后
@@ -53,12 +53,12 @@
 
 ## 详细参考
 
-- [`yulong-shared/SKILL.md`](../../yulong-shared/SKILL.md) — 共享规则
-- [`yulong-auth/SKILL.md`](../../yulong-auth/SKILL.md) — 认证
-- [`yulong-rbac/SKILL.md`](../../yulong-rbac/SKILL.md) — 用户/角色/组织/权限
-- [`yulong-project/SKILL.md`](../../yulong-project/SKILL.md) — 商机/合同/收入/合作伙伴
-- [`yulong-hr/SKILL.md`](../../yulong-hr/SKILL.md) — 通报/知识库/文件
+- [`yulong-shared/SKILL.md`](../yulong-shared/SKILL.md) — 共享规则
+- [`yulong-auth/SKILL.md`](../yulong-auth/SKILL.md) — 认证
+- [`yulong-rbac/SKILL.md`](../yulong-rbac/SKILL.md) — 用户/角色/组织/权限
+- [`yulong-project/SKILL.md`](../yulong-project/SKILL.md) — 商机/合同/收入/合作伙伴
+- [`yulong-hr/SKILL.md`](../yulong-hr/SKILL.md) — 通报/知识库/文件
 - [references/products/](./) — 各产品命令详细参考
-- [references/global-reference.md](../global-reference.md) — 认证机制、全局 flag、输出格式
-- [references/error-codes.md](../error-codes.md) — 错误码与调试流程
-- [references/recovery-guide.md](../recovery-guide.md) — recovery 闭环规范
+- [references/global-reference.md](./global-reference.md) — 认证机制、全局 flag、输出格式
+- [references/error-codes.md](./error-codes.md) — 错误码与调试流程
+- [references/recovery-guide.md](./recovery-guide.md) — recovery 闭环规范

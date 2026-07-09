@@ -6,11 +6,7 @@ RBAC（Role-Based Access Control）模块提供御龙系统的用户、角色、
 
 | 命令 | 方法 | 路径 | 说明 | 状态 |
 |------|------|------|------|------|
-| `rbac user userPage` | POST | `/rbac/user/userPage` | 用户分页查询 | ✅ 已实现 |
-| `rbac user info` | — | — | 用户详情 | ⏳ 未实现 |
-| `rbac user add` | — | — | 新增用户 | ⏳ 未实现 |
-| `rbac user update` | — | — | 更新用户 | ⏳ 未实现 |
-| `rbac user delete` | — | — | 删除用户 | ⏳ 未实现 |
+| `yulong rbac user userPage` | POST | `/rbac/user/userPage` | 用户分页查询 | ✅ 已实现 |
 
 ## 权限要求
 
@@ -99,9 +95,8 @@ yulong rbac user userPage --json '{"currentPage":1,"pageSize":10,"orgId":"ae6475
 
 ## 意图映射
 
-- "查询用户列表" / "用户分页" / "列出用户" → `rbac user userPage`
-- "搜索用户" → `rbac user userPage` 并构造 `loginName` / `realName` 参数
-- "用户详情" → `rbac user info`（未实现，需追问）
+- "查询用户列表" / "用户分页" / "列出用户" → `yulong rbac user userPage`
+- "搜索用户" → `yulong rbac user userPage` 并构造 `loginName` / `realName` 参数
 
 ## 错误处理
 

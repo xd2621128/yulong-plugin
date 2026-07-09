@@ -1,7 +1,7 @@
 import { loadConfig } from './config';
-import { getAccessToken, getRefreshToken, saveTokens, clearTokens, loadTokens } from './token-manager';
+import { getAccessToken, getRefreshToken, saveTokens, clearTokens, loadTokens } from '../auth/token-manager';
 import { getApiPermission } from './db';
-import { thirdPartyLogin } from './auth-core';
+import { thirdPartyLogin } from '../auth/auth-core';
 import { ErrorType } from './envelope';
 import * as logger from './logger';
 import type { CommandContext, RequestConfig } from './types';
@@ -144,7 +144,7 @@ export function buildRequest(
 async function loginAndRefreshPermissions(userid: string, timeoutSeconds: number): Promise<string> {
   const accessToken = await thirdPartyLogin(userid, timeoutSeconds);
   try {
-    const { refreshUserPermissions } = await import('./permission-guard');
+    const { refreshUserPermissions } = await import('../auth/permission-guard');
     await refreshUserPermissions(userid);
   }
   catch (err) {
@@ -269,7 +269,7 @@ export async function refreshAccessToken(
   // 刷新 token 成功后，若知道当前用户，同步刷新权限缓存
   if (options.userid) {
     try {
-      const { refreshUserPermissions } = await import('./permission-guard');
+      const { refreshUserPermissions } = await import('../auth/permission-guard');
       await refreshUserPermissions(options.userid);
     }
     catch (err) {

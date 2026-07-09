@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { getDataDir } from './config';
-import type { TokenInfo } from './types';
+import { getDataDir } from '../core/config';
+import type { TokenInfo } from '../core/types';
 
 const TOKEN_FILE = 'tokens.local.json';
 

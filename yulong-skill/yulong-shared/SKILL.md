@@ -109,7 +109,7 @@ Token 模式行为：
 
 当前已登记的危险操作：
 
-- `hr.knowledge.addKnowledge`：新增知识库，会向组织范围内发布内容
+- `yulong hr.knowledge.addKnowledge`：新增知识库，会向组织范围内发布内容
 
 执行危险操作必须执行三步确认：
 
