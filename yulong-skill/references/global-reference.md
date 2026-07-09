@@ -35,7 +35,13 @@ Skill 调用时应优先使用 `yulong`（假设已加入 PATH）。如果 PATH 
 
 ## 认证机制
 
-### 本地模式（当前）
+Skill 不询问用户“使用哪种模式”，模式由部署环境决定：
+
+1. Skill 上下文/网关注入了 `accessToken` → Token 模式。
+2. `config.json` / `config.local.json` 中 `"mode": "token"` → Token 模式。
+3. 否则 → 本地模式（桌面端默认）。
+
+### 本地模式（桌面端默认）
 
 本地模式不指定 `--token`，CLI 自动完成：
 
@@ -173,10 +179,53 @@ yulong rbac user userPage --help
 2. 环境变量 `YULONG_*`
 3. `config.local.json`
 4. `config.json`
-5. `.env.*.local`、`.env.development`、`.env.test`、`.env.production`、`.env`
+5. `.env.*.local`、`.env.development`、`.env.test`、`.env.production`、`.env`（开发模式下由 Bun 自动注入为环境变量；编译后的二进制手动加载后合并到 `process.env`）
+
+> 实际运行时，`.env` 中的值会通过第 2 优先级生效。
+
+## 危险操作确认协议
+
+当前御龙 CLI 对危险操作采用**前置 `--yes` 门禁**：当命令对应的 `api_permissions.is_dangerous === 1` 时，如果不带 `--yes`，CLI 会立即返回 `error.type === "validation_error"` 并提示"危险操作 xxx，请添加 --yes 确认"。
+
+> 这与飞书 Lark CLI 的 exit 10 + `confirmation_required` 机制不同。当前御龙 CLI 不返回 exit 10，也不返回 `confirmation_required`。若未来 CLI 升级该机制，本协议将同步更新。
+
+### 处理流程
+
+1. **识别**：CLI 返回 `error.type === "validation_error"` 且消息包含"危险操作"和"请添加 --yes 确认"
+2. **向用户确认**：展示操作摘要（操作类型 + 目标对象 + 影响范围），明确告知这是危险操作，等待用户显式同意
+3. **用户同意** → 在**原命令末尾追加 `--yes`** 后重试
+4. **用户拒绝** → 终止流程，不要擅自追加 `--yes`
+
+### 示例
+
+```bash
+# 首次尝试（不带 --yes）
+yulong hr knowledge addKnowledge --json '{"title":"...","type":11,"content":"...","scopeOrgId":"..."}' --format json
+# 返回：{"ok":false,"error":{"type":"validation_error","message":"危险操作 hr.knowledge.addKnowledge，请添加 --yes 确认"}}
+
+# 用户确认后重试
+yulong hr knowledge addKnowledge --json '{"title":"...","type":11,"content":"...","scopeOrgId":"..."}' --yes --format json
+```
+
+### 绝对不允许
+
+- 看到"危险操作"提示就默认加 `--yes` 静默重试
+- 把 `validation_error` 当网络错误/权限错误处理
+- 在用户没明确同意的前提下追加 `--yes`
+
+### 提前预览
+
+想先让用户 review 危险请求的具体内容，可调用时加 `--dry-run`：
+
+```bash
+yulong hr knowledge addKnowledge --json '{"title":"...",...}' --dry-run --format json
+```
+
+`--dry-run` 不触发门禁，会打印解析后的请求详情。
 
 ## 注意事项
 
 - CLI 是单二进制产物，部署时只需 `yulong` 文件和 SQLite 数据目录
 - `data/tokens.local.json` 是运行时文件，权限应为 `0o600`
 - Skill 调用 CLI 时，应保证 `YULONG_BASE_URL` 或 `config.json` 已正确配置
+- 危险操作必须先向用户确认，用户同意后才加 `--yes` 执行

@@ -1,6 +1,6 @@
 # 合同/签约清单（Contract）
 
-`project.origin-contract.forward.list` 是 Agent 应使用的 CLI 命令，内部映射到后端接口 `POST /project/origin-contract/forward/list`，用于查询**合同清单**（也称为"签约清单"）。Agent 禁止直接调用该后端接口。
+`yulong project.origin-contract.forward.list` 是 Agent 应使用的 CLI 命令，内部映射到后端接口 `POST /project/origin-contract/forward/list`，用于查询**合同清单**（也称为"签约清单"）。Agent 禁止直接调用该后端接口。
 
 ## 权限要求
 
@@ -19,8 +19,8 @@ yulong project origin-contract forward list --json '{"currentPage":1,"pageSize":
 当用户提到需要按部门、区域、客户属地、产品田、营销田、研发田等条件查询时，必须**先查字典接口拿到 ID，再调用列表接口**。
 
 > **大区 vs 区域 严格区分**：
-> - 用户说"XX 大区"通常是想按**部门**筛选（`depId`），但部门字典里的 `dname` 不一定就叫"XX 大区"，必须通过 `project crmField dept` 查询并在结果中匹配用户意图
-> - "XX 区域"才指区域字典（`regionId`），应查 `project crmField region`
+> - 用户说"XX 大区"通常是想按**部门**筛选（`depId`），但部门字典里的 `dname` 不一定就叫"XX 大区"，必须通过 `yulong project crmField dept` 查询并在结果中匹配用户意图
+> - "XX 区域"才指区域字典（`regionId`），应查 `yulong project crmField region`
 > - 如果 `dept` 字典中找不到能匹配用户说法的部门，必须向用户确认，禁止自动把"大区"当作"区域"处理
 
 ```
@@ -91,13 +91,13 @@ yulong project origin-contract forward list --json '{"currentPage":1,"pageSize":
 | 用户说法 | 对应命令 | 说明 |
 |----------|----------|------|
 | "合同清单" / "签约清单" / "查合同" / "列出合同" | `yulong project origin-contract forward list` | 两个说法指向同一个命令 |
-| "XX 大区的合同清单" / "XX 大区的签约清单" | 先 `project crmField dept`，再 `project origin-contract forward list` | 用户说"XX 大区"通常想按部门筛选，但实际部门名称不一定是"XX 大区"；必须在 dept 字典中匹配，找不到时追问用户 |
-| "XX 区域的合同清单" / "XX 区域的签约清单" | 先 `project crmField region`，再 `project origin-contract forward list` | 区域是 region |
-| "XX 省的合同清单" / "XX 省的签约清单" | 先 `project crmField province`，再 `project origin-contract forward list` | 客户属地是 areaId |
-| "按产品田查合同" / "按产品田查签约清单" | 先 `project crmField productField`，再 `project origin-contract forward list` | productField |
-| "按营销田总监查合同" / "按营销田总监查签约清单" | 先 `project crmField marketField`，再 `project origin-contract forward list` | marketLeader |
-| "按研发田查合同" / "按研发田查签约清单" | 先 `project system pm-index listRDField`，再 `project origin-contract forward list` | rdField |
-| "按时间查合同" / "25 年的合同清单" / "25 年的签约清单" | `project origin-contract forward list` + 归档时间范围 | 按 archiveTime 筛选 |
+| "XX 大区的合同清单" / "XX 大区的签约清单" | 先 `yulong project crmField dept`，再 `yulong project origin-contract forward list` | 用户说"XX 大区"通常想按部门筛选，但实际部门名称不一定是"XX 大区"；必须在 dept 字典中匹配，找不到时追问用户 |
+| "XX 区域的合同清单" / "XX 区域的签约清单" | 先 `yulong project crmField region`，再 `yulong project origin-contract forward list` | 区域是 region |
+| "XX 省的合同清单" / "XX 省的签约清单" | 先 `yulong project crmField province`，再 `yulong project origin-contract forward list` | 客户属地是 areaId |
+| "按产品田查合同" / "按产品田查签约清单" | 先 `yulong project crmField productField`，再 `yulong project origin-contract forward list` | productField |
+| "按营销田总监查合同" / "按营销田总监查签约清单" | 先 `yulong project crmField marketField`，再 `yulong project origin-contract forward list` | marketLeader |
+| "按研发田查合同" / "按研发田查签约清单" | 先 `yulong project system pm-index listRDField`，再 `yulong project origin-contract forward list` | rdField |
+| "按时间查合同" / "25 年的合同清单" / "25 年的签约清单" | `yulong project origin-contract forward list` + 归档时间范围 | 按 archiveTime 筛选 |
 
 ## 典型场景
 
@@ -106,7 +106,7 @@ yulong project origin-contract forward list --json '{"currentPage":1,"pageSize":
 > 请帮我导出西北大区 25 年 12 月的签约清单。
 > 请帮我导出西北大区 25 年 12 月的合同清单。
 
-"西北大区" 是用户口语中的部门说法；实际部门字典中的名称可能是"西北大区营销中心"等，也可能不是"XX 大区"命名，需通过 `project crmField dept` 查询匹配。它对应 **部门**（`depId`），不是区域。
+"西北大区" 是用户口语中的部门说法；实际部门字典中的名称可能是"西北大区营销中心"等，也可能不是"XX 大区"命名，需通过 `yulong project crmField dept` 查询匹配。它对应 **部门**（`depId`），不是区域。
 
 **Step 1**：查部门字典
 
@@ -187,5 +187,5 @@ yulong project origin-contract forward list --format json --json '{
 - 禁止将中文名称直接填入 `depId`/`regionId`/`areaId`/`productField`/`marketLeader`/`rdField` 等字段，必须先查字典
 - 禁止在未确认区域/时间范围时构造查询
 - 禁止单次拉取超过 100 条，大数据量必须分页
-- 禁止混淆"部门/大区"与"区域"：用户说"XX 大区"通常想按部门筛选，但部门字典里的 `dname` 不一定就叫"XX 大区"，必须通过 `project crmField dept` 查询匹配；"XX 区域"才指区域字典
+- 禁止混淆"部门/大区"与"区域"：用户说"XX 大区"通常想按部门筛选，但部门字典里的 `dname` 不一定就叫"XX 大区"，必须通过 `yulong project crmField dept` 查询匹配；"XX 区域"才指区域字典
 - 禁止在部门字典找不到匹配时，自动把"XX 大区"当作"XX 区域"处理，必须追问用户确认

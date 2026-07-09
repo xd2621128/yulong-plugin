@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { resolveUser } from './user-resolver';
-import { closeDb } from './db';
+import { closeDb } from '../core/db';
 
 function minimalOptions() {
   return {

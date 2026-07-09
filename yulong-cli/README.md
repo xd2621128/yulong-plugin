@@ -64,8 +64,9 @@ NODE_ENV=production bun run src/index.ts schema
 1. 环境变量（`export YULONG_BASE_URL=...`）
 2. `config.local.json`
 3. `config.json`
-4. `.env.{env}` / `.env`
-5. 硬编码默认值
+4. 硬编码默认值
+
+> `.env` / `.env.{env}` / `.env.{env}.local` 在开发模式下由 Bun 自动注入为环境变量；编译后的二进制会手动加载这些文件，再合并到 `process.env`。因此 `.env` 中的值最终通过第 1 优先级生效。
 
 ## 编译为单二进制
 
@@ -114,8 +115,11 @@ wrapper 中的 `YULONG_HOME` 决定每个用户把配置和数据放在哪里：
 | 模式 | `YULONG_HOME` | 行为 |
 |------|--------------|------|
 | 全局安装（推荐） | 默认 `$HOME/.config/yulong` | 每个用户独立配置/数据，首次运行时从安装目录复制 seed |
+| 用户级安装 | 默认 `$HOME/.config/yulong` | 二进制放在 `$HOME/.local/lib/yulong/`，wrapper 放在 `$HOME/.local/bin/yulong` |
 | 便携包 | 不设置，直接 `cd` 到解压目录运行 `./yulong` | 使用包内 `config.json` 和 `data/yulong.db` |
 | 自定义 | 显式设置任意路径 | 配置/数据放到该路径 |
+
+> 用户级安装示例见项目根目录 `README.md`。
 
 ### 2. 配置
 
@@ -160,6 +164,23 @@ yulong auth login --format json
 yulong rbac user userPage --format json --json '{"currentPage":1,"pageSize":10}'
 ```
 
+### 4. Token 模式（服务端部署）
+
+由上游（网页端模型对话/网关）提供 `accessToken` 时，所有命令附加 `--token <accessToken>`：
+
+```bash
+yulong rbac user userPage \
+  --json '{"currentPage":1,"pageSize":10}' \
+  --token <accessToken> \
+  --format json
+```
+
+Token 模式特点：
+- CLI 不管理 token 生命周期，不读取御小龙数据库，不写 `tokens.local.json`。
+- 每次启动会用该 token 拉取一次权限做预检，不缓存权限。
+- Token 失效时直接返回 `auth_required`，需要上游重新提供 token。
+- 禁止执行 `yulong auth login / logout / switch-org`；`auth status` 和 `auth refresh-permissions` 仍可用。
+
 ## 项目结构
 
 ```
@@ -188,15 +209,17 @@ yulong-cli/
 ## 当前状态
 
 已实现：
-- 命令解析和全局 Flag
+- 命令解析和全局 Flag（含 `--token`、`--timeout`、`--format`、`--fields` 等）
 - JSON 统一输出
-- SQLite 数据库初始化
-- token 存储/读取/过期检查/自动刷新/自动重登
+- SQLite 数据库初始化，旧版 `users.db` 自动迁移到 `yulong.db`
+- 本地模式：token 存储/读取/过期检查/自动刷新/自动重登
+- Token 模式：外部 token 透传、权限预检、失效即抛 `auth_required`
 - `schema` 命令发现
-- `auth` 命令：login / logout / status / import-token
-- 权限预检与缓存
+- `auth` 命令：login / logout / status / refresh-permissions / switch-org
+- 权限预检与缓存（本地模式）
 - HTTP 客户端接入真实后端
 - 业务命令通用分发（已实现 `rbac user userPage`）
+- 文件上传：`hr.file.upload` / `hr.file.upload.return.attachment`
 
 ## 与 Skill 集成
 

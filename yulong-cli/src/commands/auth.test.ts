@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { handle as authHandle } from './auth';
-import { fetchUserPermissions } from './permission-guard';
-import { businessCommand } from './commands/business';
-import { buildRequest, request } from './api-client';
-import { closeDb, getDb, upsertApiPermission } from './db';
-import { ErrorType } from './envelope';
-import type { CommandContext } from './types';
+import { handle as authHandle } from '../commands/auth';
+import { fetchUserPermissions } from '../auth/permission-guard';
+import { businessCommand } from './business';
+import { buildRequest, request } from '../core/api-client';
+import { closeDb, getDb, upsertApiPermission } from '../core/db';
+import { ErrorType } from '../core/envelope';
+import type { CommandContext } from '../core/types';
 
 function contextFor(args: Partial<CommandContext['options']> & { command?: string; args?: string[] } = {}): CommandContext {
   return {
@@ -97,6 +97,10 @@ describe('Token mode', () => {
   });
 
   describe('auth commands', () => {
+    it('auth with empty subcommand shows helpful message', async () => {
+      await expect(authHandle('', contextFor())).rejects.toThrow('请指定 auth 子命令');
+    });
+
     it('auth status returns token_mode', async () => {
       const result = await authHandle('status', contextFor({ token: 'tok123' }));
       expect(result).toEqual({
@@ -106,16 +110,17 @@ describe('Token mode', () => {
     });
 
     it('auth login is prohibited in token mode', async () => {
-      await expect(authHandle('login', contextFor({ token: 'tok123' }))).rejects.toThrow('当前使用 --token 模式');
+      await expect(authHandle('login', contextFor({ token: 'tok123' }))).rejects.toThrow('auth login 不可用');
+      await expect(authHandle('login', contextFor({ token: 'tok123' }))).rejects.toThrow('status / refresh-permissions');
     });
 
     it('auth logout is prohibited in token mode', async () => {
-      await expect(authHandle('logout', contextFor({ token: 'tok123' }))).rejects.toThrow('当前使用 --token 模式');
+      await expect(authHandle('logout', contextFor({ token: 'tok123' }))).rejects.toThrow('auth logout 不可用');
     });
 
     it('auth switch-org is prohibited in token mode', async () => {
       const ctx = contextFor({ token: 'tok123', json: '{"orgId":"o1"}' });
-      await expect(authHandle('switch-org', ctx)).rejects.toThrow('当前使用 --token 模式');
+      await expect(authHandle('switch-org', ctx)).rejects.toThrow('auth switch-org 不可用');
     });
 
     it('auth refresh-permissions fetches permissions with token', async () => {

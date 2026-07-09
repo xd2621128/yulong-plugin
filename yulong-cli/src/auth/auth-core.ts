@@ -1,7 +1,7 @@
-import { loadConfig } from './config';
+import { loadConfig } from '../core/config';
 import { saveTokens } from './token-manager';
-import { ErrorType } from './envelope';
-import * as logger from './logger';
+import { ErrorType } from '../core/envelope';
+import * as logger from '../core/logger';
 
 /** 后端统一响应结构 */
 interface BackendResponse {

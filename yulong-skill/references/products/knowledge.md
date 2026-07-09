@@ -14,13 +14,13 @@
 
 | 命令 | 本地权限 | match_mode | ResourceMark | 说明 |
 |------|----------|------------|--------------|------|
-| `hr.knowledge.getOrgTree` | `["all"]` | `all` | — | 对任意已登录用户开放 |
-| `hr.knowledge.classifyList` | `["all"]` | `all` | — | 对任意已登录用户开放 |
-| `hr.knowledge.addKnowledge` | `["KNOWLEDGE"]` | `any` | `KNOWLEDGE` | 需要 `KNOWLEDGE` 权限，且为危险操作 |
+| `yulong hr.knowledge.getOrgTree` | `["all"]` | `all` | — | 对任意已登录用户开放 |
+| `yulong hr.knowledge.classifyList` | `["all"]` | `all` | — | 对任意已登录用户开放 |
+| `yulong hr.knowledge.addKnowledge` | `["KNOWLEDGE"]` | `any` | `KNOWLEDGE` | 需要 `KNOWLEDGE` 权限，且为危险操作 |
 
 ## 参数说明
 
-### `hr.knowledge.addKnowledge`
+### `yulong hr.knowledge.addKnowledge`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
@@ -88,7 +88,7 @@
 
 ## 字段校验
 
-在调用 `hr.knowledge.addKnowledge` 前，Agent 必须校验：
+在调用 `yulong hr.knowledge.addKnowledge` 前，Agent 必须校验：
 
 - `title`、`type`、`content`、`scopeOrgId` 不能为空。
 - 当 `type` 为 `16`（模板下载）或 `17`（常见问题解答）时，`classification` **必须**有值；否则必须追问用户选择分类，禁止直接提交。
@@ -111,7 +111,7 @@
 如果涉及附件，Agent 必须按以下规则处理：
 
 1. **本地附件**：调用 `yulong hr file upload --file <path> --format json` 上传，获取 `fileId`。
-2. **从其他模块迁移的附件**（如把通报附件搬到知识库）：**禁止直接复用原 `fileId` 或 `colRealpath`**，必须先用 `yulong hr file download <fileId>` 下载到本地，再重新调用 `hr.file.upload` 上传获取新 `fileId`。
+2. **从其他模块迁移的附件**（如把通报附件搬到知识库）：**禁止直接复用原 `fileId` 或 `colRealpath`**，必须先用 `yulong hr file download <fileId>` 下载到本地，再重新调用 `yulong hr.file.upload` 上传获取新 `fileId`。
 
 然后用新的 `fileId` 拼接 `colRealpath`：
 
@@ -145,15 +145,27 @@
 
 ## 危险操作确认
 
-`hr.knowledge.addKnowledge` 是危险操作，必须执行三步确认：
+`yulong hr.knowledge.addKnowledge` 是危险操作，新增知识库会向组织范围内发布内容。执行时必须遵循 [global-reference.md](../global-reference.md) 中的"危险操作确认协议"：
 
 1. **展示操作摘要**：标题、类型、分享范围组织名、分类（如有）、附件数量。
 2. **用户明确回复确认**（如 "确认" / "好的" / "发布"）。
-3. **加 `--yes` 执行**：
+3. **在原命令末尾追加 `--yes` 执行**：
 
    ```bash
    yulong hr knowledge addKnowledge --json '{"title":"...","type":11,"content":"...","scopeOrgId":"...","classification":1,"attachments":"..."}' --yes --format json
    ```
+
+> 当前御龙 CLI 在不带 `--yes` 时会返回 `error.type === "validation_error"` 并提示"危险操作 hr.knowledge.addKnowledge，请添加 --yes 确认"。看到该提示后必须向用户确认，禁止自动加 `--yes` 重试。
+
+### 先用 `--dry-run` 预览
+
+用户想先 review 具体请求时，可先执行：
+
+```bash
+yulong hr knowledge addKnowledge --json '{"title":"...",...}' --dry-run --format json
+```
+
+`--dry-run` 不触发门禁，会打印解析后的请求详情。
 
 ## 命令示例
 
@@ -175,9 +187,9 @@ yulong hr knowledge addKnowledge --json '{
 
 ## 响应说明
 
-- `hr.knowledge.getOrgTree`：返回组织树数组。
-- `hr.knowledge.classifyList`：返回 `{ code, name }[]`。
-- `hr.knowledge.addKnowledge`：成功时 `data` 通常为 `1` 或新增记录 id。
+- `yulong hr.knowledge.getOrgTree`：返回组织树数组。
+- `yulong hr.knowledge.classifyList`：返回 `{ code, name }[]`。
+- `yulong hr.knowledge.addKnowledge`：成功时 `data` 通常为 `1` 或新增记录 id。
 
 ## 错误处理
 
@@ -189,6 +201,6 @@ yulong hr knowledge addKnowledge --json '{
 
 - 禁止在用户信息不全（必填字段缺失）时猜测并构造新增请求。
 - 禁止绕过二次确认直接加 `--yes`；必须等待用户明确确认。
-- 禁止把 `scopeOrgId` 直接写死；必须通过 `hr.knowledge.getOrgTree` 让用户选择有效组织。
-- 禁止把 `classification` 写死；`type` 为 16/17 时必须通过 `hr.knowledge.classifyList` 查询。
+- 禁止把 `scopeOrgId` 直接写死；必须通过 `yulong hr.knowledge.getOrgTree` 让用户选择有效组织。
+- 禁止把 `classification` 写死；`type` 为 16/17 时必须通过 `yulong hr.knowledge.classifyList` 查询。
 - 禁止单次新增携带超过前端限制（文件名 30 字符、文件 100MB）的附件。

@@ -1,6 +1,7 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Kimi Code when working with code in this repository.
+It mirrors the project conventions documented in `CLAUDE.md`.
 
 ## 项目概览
 
@@ -8,7 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `yulong-cli/`：Bun + TypeScript 写的命令行客户端，编译为单二进制。
 - `yulong-skill/`：御小龙 Skill 的指令与参考文档，最终通过调用 `yulong` 二进制与后端交互。
-- `.plan/plan.md`：项目原始开发计划与架构上下文。
+- `.plan/plan.md`：项目开发计划与架构上下文。
+- `plans/`：补充计划文档，如 `plans/2026-07-02-token-mode.md`。
 - `dist/`：编译后的部署包（git 忽略），包含 `yulong-deploy-mac/` 和 `yulong-deploy/`。
 
 ## 常用命令
@@ -20,7 +22,7 @@ cd yulong-cli
 bun install              # 安装依赖（只有 @types/bun 和 typescript）
 bun run typecheck        # tsc --noEmit
 bun test                 # 运行所有测试
-bun test src/user-resolver.test.ts   # 运行单个测试文件
+bun test src/auth/user-resolver.test.ts   # 运行单个测试文件
 bun run dev -- schema    # 开发模式运行：bun run src/index.ts schema
 bun run build:mac        # 编译 macOS ARM64 二进制 -> yulong-mac
 bun run build:linux      # 编译 Linux x64 二进制 -> yulong
@@ -43,7 +45,7 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 `src/index.ts`：
 
 1. 用 Node `util.parseArgs` 解析全局选项（`--token`、`--json`、`--format`、`--fields` 等）。
-2. 特殊命令 `auth` / `schema` 直接分发到 `auth.ts` / `schema.ts`。
+2. 特殊命令 `auth` / `schema` 直接分发到 `commands/auth.ts` / `commands/schema.ts`。
 3. 业务命令通过 `resolveCommandAndArgs()` 在 `api_permissions` 表中做最长前缀匹配，得到命令名和路径参数。
 4. 普通模式调用 `resolveUser()` 读取当前登录用户；Token 模式跳过此步。
    - macOS 默认读取 `~/Library/Application Support/御小龙/yuxiaolong.db` 中 `auth_sessions.id = 'current'` 的 `user_info`。
@@ -53,7 +55,7 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 
 ### 命令注册表：`api_permissions`
 
-`db.ts` 中的 `api_permissions` 表是命令映射的唯一事实源：
+`core/db.ts` 中的 `api_permissions` 表是命令映射的唯一事实源：
 
 - `command_name`：点分命令名，如 `rbac.user.userPage`。
 - `method` / `path`：实际 HTTP 方法及后端路径；路径参数占位符为 `${param0}`、`${param1}`。
@@ -61,7 +63,7 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 - `is_dangerous`：为 1 时执行必须加 `--yes`。
 - `resource_mark`：默认写入 `X-ResourceMark` 请求头，可被 `--resource-mark` 覆盖。
 
-新增业务命令时，通常需要在 `api_permissions` 中插入一条映射，并在 `command-params.ts` 中补充 `--help` 参数说明。
+新增业务命令时，通常需要在 `api_permissions` 中插入一条映射，并在 `commands/command-params.ts` 中补充 `--help` 参数说明。
 
 ### 两种认证模式
 
@@ -72,22 +74,22 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 
 ### 认证与权限
 
-- `auth-core.ts`：本地模式下调用 `POST /hr/auth/extends/login/third/party4UserId` 获取 token。
-- `token-manager.ts`：本地模式下读写 `tokens.local.json`，判断 accessToken 是否过期（提前 5 分钟缓冲）。
-- `auth.ts`：
+- `auth/auth-core.ts`：本地模式下调用 `POST /hr/auth/extends/login/third/party4UserId` 获取 token。
+- `auth/token-manager.ts`：本地模式下读写 `tokens.local.json`，判断 accessToken 是否过期（提前 5 分钟缓冲）。
+- `commands/auth.ts`：
   - `login` / `logout` / `switch-org` 在 Token 模式下不可用。
   - `status` 在两种模式下都可用；Token 模式返回 `status: 'token_mode'`。
   - `refresh-permissions` 在两种模式下都可用：本地模式刷新 `yulong.db` 缓存，Token 模式通过外部 token 临时拉取权限。
-- `permission-guard.ts`：
+- `auth/permission-guard.ts`：
   - 本地模式：读 `user_permissions` 缓存，未命中或为空时调 `GET /rbac/resource/grantedResources` 刷新。
   - Token 模式：`fetchUserPermissions(token)` 每次都请求后端，不缓存。
-- `api-client.ts`：
+- `core/api-client.ts`：
   - `buildRequest()` 根据 `api_permissions` 构造 URL、headers（Authorization、X-ResourceMark）、query/body。
   - `request()` 执行 fetch，映射后端错误码到 `ErrorType`；本地模式下 accessToken 过期会自动 refresh 并重试一次，Token 模式下直接抛 `auth_required`。
 
 ### Schema 命令
 
-`schema.ts` 提供 `yulong schema` 子命令，用于列出当前已开放的命令：
+`commands/schema.ts` 提供 `yulong schema` 子命令，用于列出当前已开放的命令：
 
 - 默认只返回 "已开放" 的命令（`required_permissions` 非空，或 `match_mode === 'all'`），与 `yulong schema` 的过滤标准保持一致。
 - 支持 `--json '{"module":"rbac"}'` 按模块过滤。
@@ -96,8 +98,8 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 
 ### 数据输出
 
-- `envelope.ts`：统一 envelope `{ ok, data?, error?, dryRun?, asOf }`；错误始终输出 JSON。
-- `formatter.ts`：处理 `--fields` 字段过滤和 `table`/`raw` 格式；分页对象会保留外层、只过滤 `records`。
+- `core/envelope.ts`：统一 envelope `{ ok, data?, error?, dryRun?, asOf }`；错误始终输出 JSON。
+- `core/formatter.ts`：处理 `--fields` 字段过滤和 `table`/`raw` 格式；分页对象会保留外层、只过滤 `records`。
 
 ### 文件上传
 
@@ -109,7 +111,7 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 
 ### 数据库
 
-`db.ts` 使用 `bun:sqlite`：
+`core/db.ts` 使用 `bun:sqlite`：
 
 - `getDb()` 单例，每次启动都会执行 `initSchema()`，保证旧 DB 也能拿到新表/触发器。
 - CLI 自身数据库默认为 `{dataDir}/yulong.db`，存储 `api_permissions`（命令注册表）和 `user_permissions`（本地权限缓存）。
@@ -129,8 +131,8 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 ## 新增命令或模块时的 checklist
 
 1. 在 `api_permissions` 中插入映射（可用 CLI 或 seed 脚本）。
-2. 若路径含 `${param0}` 等占位符，确认 `api-client.resolvePath()` 的 fallback 键或 `--json` 中的同名字段能填充。
-3. 在 `command-params.ts` 中补充 `--help` 参数说明。
+2. 若路径含 `${param0}` 等占位符，确认 `core/api-client.resolvePath()` 的 fallback 键或 `--json` 中的同名字段能填充。
+3. 在 `commands/command-params.ts` 中补充 `--help` 参数说明。
 4. 若是文件上传命令，在 `commands/business.ts` 的 `isFileUploadCommand()` 中登记。
 5. 若是危险操作，设置 `api_permissions.is_dangerous = 1`，并确保 Skill 文档有三步确认流程。
 6. 更新 `yulong-skill/references/products/` 中对应产品的参考文档。

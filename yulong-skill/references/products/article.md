@@ -16,10 +16,10 @@
 
 | 命令 | 本地权限 | match_mode | ResourceMark |
 |------|----------|------------|--------------|
-| `hr.article.findReportPage` | `["workbench"]` | `any` | `workbench` |
-| `hr.article.detail` | `["workbench"]` | `any` | `workbench` |
+| `yulong hr.article.findReportPage` | `["workbench"]` | `any` | `workbench` |
+| `yulong hr.article.detail` | `["workbench"]` | `any` | `workbench` |
 
-附件下载依赖通用文件接口 `hr.file.download`，其权限说明见 [file.md](./file.md)。
+附件下载依赖通用文件接口 `yulong hr.file.download`，其权限说明见 [file.md](./file.md)。
 
 ## 命令示例
 
@@ -40,7 +40,7 @@ yulong hr file download 1894319070076387331 --format json
 
 ## 常用参数
 
-### `hr.article.findReportPage`
+### `yulong hr.article.findReportPage`
 
 | 参数 | 类型 | 说明 | 示例 |
 |------|------|------|------|
@@ -54,7 +54,7 @@ yulong hr file download 1894319070076387331 --format json
 | `top` | boolean | 是否置顶 | `false` |
 | `expressTop` | boolean | 是否研发运营速递 | `false` |
 
-### `hr.article.detail` / `hr.file.download`
+### `yulong hr.article.detail` / `yulong hr.file.download`
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
@@ -188,7 +188,7 @@ id = colRealpath.split('/').pop()
 
 ### 专刊（type = 29）的 PDF 附件
 
-专刊详情页会把附件当作 PDF 直接内联预览。Skill 处理方式与普通附件一致：先 `hr.file.download` 获取 base64，再保存为 PDF 文件供用户查看。
+专刊详情页会把附件当作 PDF 直接内联预览。Skill 处理方式与普通附件一致：先 `yulong hr.file.download` 获取 base64，再保存为 PDF 文件供用户查看。
 
 ## 核心流程
 
@@ -211,15 +211,15 @@ id = colRealpath.split('/').pop()
 |----------|----------|------|
 | "通报列表" / "查通报" / "最近通报" | `yulong hr article findReportPage` | 默认按发布时间倒序查前 10 条 |
 | "查看通报 xxx" / "通报 xxx 内容" | `yulong hr article detail <id>` | id 从列表或用户话语中提取 |
-| "下载通报附件" / "把附件发我" | `hr.article.detail` → `hr.file.download` | 先取 attachments 再逐个下载 |
-| "按标题查通报" | `hr.article.findReportPage` + `title` | 模糊匹配标题 |
-| "某年某月的通报" | `hr.article.findReportPage` + `scopeStartTimeStr/scopeEndTimeStr` | 时间范围 |
+| "下载通报附件" / "把附件发我" | `yulong hr.article.detail` → `yulong hr.file.download` | 先取 attachments 再逐个下载 |
+| "按标题查通报" | `yulong hr.article.findReportPage` + `title` | 模糊匹配标题 |
+| "某年某月的通报" | `yulong hr.article.findReportPage` + `scopeStartTimeStr/scopeEndTimeStr` | 时间范围 |
 | "通告" | — | 明确告知当前 Skill 仅支持通报，不支持通告；如用户想查通报，请使用"通报"重新提问 |
 | "新闻/公告/精选/研发运营速递" | — | 明确告知当前 Skill 仅支持通报，其他类型暂不提供 |
 
 ## 边界条件与注意事项
 
-- `hr.article.detail` 会**累加点击数**；如果需要不增加点击数，可使用 `hr.article.detailNoHit <id>`（权限已默认开放）。
+- `yulong hr.article.detail` 会**累加点击数**。
 - `findReportPage` 返回的是**已发布**通报；如需查询审批中、已作废等状态，可传 `status`。
 - `scopeStartTimeStr` / `scopeEndTimeStr` 格式为 `YYYY-MM-DD`；其他格式可能返回空结果。
 - 附件 `colRealpath` 的格式固定为 `/pubinfo-hr/hr/file/download/{fileId}`，fileId 即 `colRealpath` 的最后一段；具体下载说明见 [file.md](./file.md)。
@@ -228,7 +228,7 @@ id = colRealpath.split('/').pop()
 ## 错误处理
 
 - `permission_denied`：用户缺少 `workbench` 权限（列表/详情）或未登录（附件下载）。
-- `hr.article.detail <id>` 返回 `404` 或后端错误：检查 id 是否正确，或该通报是否已被删除/下线。
+- `yulong hr.article.detail <id>` 返回 `404` 或后端错误：检查 id 是否正确，或该通报是否已被删除/下线。
 - 附件下载失败：检查 fileId 是否为 `colRealpath` 的最后一段；通用文件下载错误处理见 [file.md](./file.md)。
 - 正文中的图片无法显示：通常是相对路径，需要后端 baseUrl 前缀；Agent 应保留原始 HTML 并向用户说明。
 

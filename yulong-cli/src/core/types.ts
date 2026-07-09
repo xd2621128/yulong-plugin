@@ -28,6 +28,8 @@ export interface GlobalOptions {
   timeout: number;
   /** 是否显示帮助 */
   help?: boolean;
+  /** 是否显示版本 */
+  version?: boolean;
   /** 上传文件路径（用于文件上传类命令） */
   file?: string;
 }
