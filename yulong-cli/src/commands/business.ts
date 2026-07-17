@@ -112,7 +112,11 @@ export async function businessCommand(
   }
 
   if (!checkResult.passed) {
-    const err = new Error(`权限不足：需要 ${permission.match_mode === 'all' ? '全部' : '任一'} [${requiredPermissions.join(', ')}]`);
+    // required_permissions 为空的命令属于未开放命令（见 auth/permission-filter.ts），给出明确提示
+    const message = requiredPermissions.length === 0
+      ? `命令 ${context.command} 尚未开放，暂不可用（可执行 yulong schema 查看已开放命令）`
+      : `权限不足：需要 ${permission.match_mode === 'all' ? '全部' : '任一'} [${requiredPermissions.join(', ')}]`;
+    const err = new Error(message);
     err.name = ErrorType.PERMISSION_DENIED;
     throw err;
   }

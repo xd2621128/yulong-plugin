@@ -1,5 +1,5 @@
 {
-  "baseUrl": "http://192.168.11.150:9099/pubinfo-hr",
+  "baseUrl": "http://192.168.111.225:9099/pubinfo-hr",
   "timeout": 30,
   "dbPath": "",
   "userDbPath": "",

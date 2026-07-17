@@ -101,7 +101,8 @@ Token 模式行为：
 | 用户意图 | 使用 Skill | 说明 |
 |---|---|---|
 | 登录、登出、登录状态、刷新权限 | [`yulong-auth`](../yulong-auth/SKILL.md) | 认证相关 |
-| 用户、角色、组织、权限 | [`yulong-rbac`](../yulong-rbac/SKILL.md) | RBAC 相关 |
+| 用户、角色、组织、权限、通讯录 | [`yulong-rbac`](../yulong-rbac/SKILL.md) | RBAC 相关 |
+| 部门、组织架构、业务线（查/增/改/删/隐藏/排序/导出） | [`yulong-rbac`](../yulong-rbac/SKILL.md) | 部门管理 |
 | 商机、合同、收入清单、合作伙伴、CRM 字典 | [`yulong-project`](../yulong-project/SKILL.md) | 项目/经营相关 |
 | 通报、知识库、通用文件上传下载 | [`yulong-hr`](../yulong-hr/SKILL.md) | HR/办公相关 |
 
@@ -110,6 +111,11 @@ Token 模式行为：
 当前已登记的危险操作：
 
 - `yulong hr.knowledge.addKnowledge`：新增知识库，会向组织范围内发布内容
+- `yulong hr.dept.add` / `hr.dept.edit` / `hr.dept.addSubDept` / `hr.dept.editSubDept`：变更组织架构
+- `yulong hr.dept.del`：删除部门（先 `hr.dept.judgeDel` 判断，先删子部门再删父部门）
+- `yulong hr.dept.hideDept` / `hr.dept.editDeptSort`：影响部门展示与顺序
+- `yulong hr.dept.export`：导出全量部门数据
+- `yulong hr.dept.addOrUpdateBusinessLine` / `hr.dept.removeBusinessLine`：业务线变更
 
 执行危险操作必须执行三步确认：
 

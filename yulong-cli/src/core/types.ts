@@ -86,6 +86,7 @@ export interface ApiPermission {
   needs_resource_mark: number;
   resource_mark?: string;
   description?: string;
+  param_location?: 'body' | 'query';
 }
 
 /** 用户权限缓存 */

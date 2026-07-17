@@ -113,12 +113,13 @@ export function buildRequest(
     headers['X-ResourceMark'] = resourceMark;
   }
 
-  // 根据 method 决定 params 放 query 还是 body
+  // 根据 method 和 param_location 决定 params 放 query 还是 body
   // 如果调用方显式传了 body（如文件上传的 FormData），优先使用显式 body
+  const paramLocation = permission?.param_location || 'body';
   const body = explicitBody !== undefined
     ? explicitBody
-    : (['POST', 'PUT', 'PATCH'].includes(method) ? params : undefined);
-  const queryParams = ['GET', 'DELETE'].includes(method) ? params : undefined;
+    : (['POST', 'PUT', 'PATCH'].includes(method) && paramLocation === 'body' ? params : undefined);
+  const queryParams = ['GET', 'DELETE'].includes(method) || paramLocation === 'query' ? params : undefined;
 
   // JSON body 需要显式设置 Content-Type，否则部分后端接口会拒绝
   if (body !== undefined && !(body instanceof FormData)) {
