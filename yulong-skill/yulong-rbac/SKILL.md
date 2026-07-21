@@ -43,6 +43,7 @@ metadata:
 | 导出岗位 Excel | `yulong hr post exportPost --format json` | 非危险操作；返回 base64 文件 |
 | 花名册列表 / 员工统计 | `yulong hr employee rosterList --json '{"pageNum":1,"pageSize":10}' --format json` / `hr employee count` | 页码字段是 **pageNum**；返回 0 多为无数据权限 |
 | 员工详情 / 合同 / 调动记录 / 绩效 | `yulong hr employee detail / getContractList / getChangeList / getPerformanceList --json '{"employeeId":...}' --format json` | employeeId 从 rosterList/addressBook 提取 |
+| 枚举字典 / 字典码翻译 | `yulong hr employee getEnum --format json` | 无参数；展示时翻译字典码，写操作提交前校验取值 |
 | 新增/编辑员工 | `yulong hr employee addEmployee / updateEmployee` | 危险操作；编辑前必须先 detail 回显、全量提交 |
 | 导出员工 / 导出绩效 / 下载导入模板 | `yulong hr employee customExportEmployee / exportPerformance / template` | 返回 base64 文件，解码保存 |
 | 花名册/绩效导入 | `yulong hr employee importData / importPerformance --file <path>` | 危险操作；multipart 上传 |

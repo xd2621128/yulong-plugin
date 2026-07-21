@@ -183,6 +183,7 @@ export const COMMAND_PARAMS: Record<string, CommandParam[]> = {
   'hr.employee.detail': [
     { name: 'employeeId', type: 'number', desc: '员工 id（必填，从 hr.employee.rosterList 获取）' },
   ],
+  'hr.employee.getEnum': [],
   'hr.employee.customExportEmployee': [
     { name: 'customExportParamList', type: 'array', desc: '导出字段列表（必填），格式 [{"cnName":"姓名","enName":"name"}]' },
     { name: 'name', type: 'string', desc: '筛选参数同 hr.employee.rosterList（pageNum/deptNo/startTime 等），可选' },
@@ -461,11 +462,76 @@ export function getCommandParams(commandName: string): CommandParam[] | undefine
  * 命令级真实参数示例
  *
  * 用于 --help 输出。若存在则覆盖通用占位示例。
+ * 示例取自 yulong-skill/references/products/ 各产品参考文档（按前端工程实际调用编写）。
+ * GET / 路径参数命令无需登记（help 不展示 JSON 示例）；无参 POST 命令登记 '{}'。
  */
 const COMMAND_EXAMPLES: Record<string, string> = {
-  'hr.knowledge.addKnowledge': '{"title":"知识库标题","type":12,"content":"正文内容","scopeOrgId":"1793907438427492353"}',
+  // 花名册
   'hr.employee.rosterList': '{"pageNum":1,"pageSize":10}',
+  'hr.employee.count': '{}',
   'hr.employee.detail': '{"employeeId":123}',
+  'hr.employee.getEnum': '{}',
+  'hr.employee.customExportEmployee': '{"pageNum":1,"pageSize":100,"customExportParamList":[{"cnName":"姓名","enName":"name"},{"cnName":"部门","enName":"deptName"}]}',
+  'hr.employee.setEmployeeSortNum': '{"list":[{"employeeId":123,"sortNum":1},{"employeeId":456,"sortNum":2}]}',
+  'hr.employee.addEmployee': '{"name":"张三","sex":"sex0","idNumber":"110101199001011234","mobile":"13900000000","dingTalkPhone":"13900000000","affiliatedCompany":"workingCompany1","contractingCompany":"contractingCompany1","deptNo":"<部门编号>","positionTypeId":9439814,"positionSequenceId":9439815,"positionId":18198219,"actualPost":"实际岗位","entryDate":"2026-07-20","isSm":0,"isArchivesInCompany":0,"isTrainingAgreement":0}',
+  'hr.employee.updateEmployee': '{"employeeId":123,"name":"张三","sex":"sex0","idNumber":"110101199001011234","mobile":"13900000000","dingTalkPhone":"13900000000","affiliatedCompany":"workingCompany1","contractingCompany":"contractingCompany1","deptNo":"<部门编号>","positionTypeId":9439814,"positionSequenceId":9439815,"positionId":18198219,"actualPost":"实际岗位","entryDate":"2026-07-20","isSm":0,"isArchivesInCompany":0,"isTrainingAgreement":0}',
+  'hr.employee.importData': '{}',
+  'hr.employee.unapprovedTransfer': '{"employeeId":123,"changeType":"2000","oldDeptId":"<当前部门编号>","deptNo":"<新部门编号>","positionTypeId":9439814,"positionSequenceId":9439815,"positionId":18198219,"salaryChange":2,"changeDate":"2026-07-20","changeReason":"调动原因"}',
+  'hr.employee.unapprovedLeave': '{"employeeId":123,"resignationTime":"2026-07-20","resignMethod":"resignMethod2","resignReason":"离职原因"}',
+  'hr.employee.getContractList': '{"employeeId":123}',
+  'hr.employee.addOrUpdateContract': '{"employeeId":123,"contractCompany":"employeeContractCompany1","contractType":"employeeContractType1","startTime":"2026-01-01","endTime":"2026-12-31","signCount":1,"contractSerial":"HT-2026-001"}',
+  'hr.employee.removeContract': '{"contractId":1426}',
+  'hr.employee.getChangeList': '{"employeeId":123}',
+  'hr.employee.addChangeRecord': '{"employeeId":123,"changeType":"1000","changeDate":"2026-07-20","originDeptName":"原部门","currentDeptNo":"<新部门编号>","currentDeptName":"新部门"}',
+  'hr.employee.updateChangeRecord': '{"recordId":657,"employeeId":123,"changeType":"1000","changeDate":"2026-07-20","originDeptName":"原部门","currentDeptNo":"<新部门编号>","currentDeptName":"新部门"}',
+  'hr.employee.removeChangeRecord': '{"recordId":657}',
+  'hr.employee.getPerformanceList': '{"employeeId":123}',
+  'hr.employee.exportPerformance': '{"employeeId":123}',
+  'hr.employee.importPerformance': '{"employeeId":"123"}',
+  'hr.employee.removePerformance': '{"id":7794}',
+  'hr.employee.updateAttachment': '{"employeeId":123,"idNumberAttachmentList":[{"fileId":"123456","name":"身份证.jpg","url":"/hr/file/download/123456"}]}',
+  'hr.employee.addressBook': '{"pageNum":1,"pageSize":10}',
+  'hr.employeeChange.employee.detail': '{"employeeId":123}',
+  'hr.regularRecord.oneClick': '{"regularId":"123456"}',
+  'hr.file.upload': '{}',
+  'hr.file.upload.return.attachment': '{}',
+  // 部门管理
+  'hr.dept.add': '{"deptName":"新部门名称","leaderId":"10029778","leaderName":"金炜","parentId":"<companyId>","parentName":"浙江省公众信息产业有限公司","nickName":"简称","businessLine":"支撑单元","deptIntro":"部门介绍"}',
+  'hr.dept.edit': '{"deptId":"<deptId>","deptName":"名称","leaderId":"<userId>","nickName":"新简称","businessLine":"支撑单元"}',
+  'hr.dept.addSubDept': '{"parentId":"<一级部门 deptId>","parentName":"市场部","dname":"子部门名","leaderId":"<userId>","leaderName":"负责人姓名"}',
+  'hr.dept.editSubDept': '{"deptId":"<子部门 deptId>","parentId":"<一级部门 deptId>","dname":"新名称","deptIntro":"子部门介绍"}',
+  'hr.dept.del': '{"deptId":"<deptId>"}',
+  'hr.dept.hideDept': '{"deptId":"<deptId>","isHide":1}',
+  'hr.dept.editDeptSort': '{"deptSort":[{"deptId":"<deptId1>"},{"deptId":"<deptId2>"},{"deptId":"<deptId3>"}]}',
+  'hr.dept.export': '{"companyId":"<companyId>"}',
+  'hr.dept.list': '{"companyId":"<companyId>"}',
+  'hr.dept.listCompany': '{}',
+  'hr.dept.getDeptTree': '{"isAll":1}',
+  'hr.dept.getBusinessLine': '{}',
+  'hr.dept.addOrUpdateBusinessLine': '{"name":"新业务线"}',
+  'hr.dept.removeBusinessLine': '{"id":13}',
+  // 岗位管理
+  'hr.post.getPostTree': '{}',
+  'hr.post.getPostByType': '{"type":"1"}',
+  'hr.post.getDetail': '{"positionId":9439814}',
+  'hr.post.getPostUserNum': '{"positionId":9439814}',
+  'hr.post.addPost': '{"postName":"新类别","type":"1"}',
+  'hr.post.updatePost': '{"positionId":18198286,"postName":"新名称","remarks":"新描述"}',
+  'hr.post.removePost': '{"positionId":18198286}',
+  'hr.post.exportPost': '{}',
+  // RBAC / 知识库 / 通报
+  'rbac.user.userPage': '{"currentPage":1,"pageSize":10,"loginName":"xfh"}',
+  'hr.public.getUserList': '{"name":"金"}',
+  'hr.knowledge.addKnowledge': '{"title":"知识库标题","type":12,"content":"正文内容","scopeOrgId":"1793907438427492353"}',
+  'hr.knowledge.getOrgTree': '{}',
+  'hr.article.findReportPage': '{"currentPage":1,"pageSize":10,"title":"安全生产"}',
+  // 项目/经营
+  'project.business.list': '{"currentPage":1,"pageSize":10}',
+  'project.edaLabel.afterSplit': '{"currentPage":1,"pageSize":10}',
+  'project.edaLabel.beforeSplit': '{"currentPage":1,"pageSize":10}',
+  'project.partner.page': '{"currentPage":1,"pageSize":10,"type":1}',
+  'project.origin-contract.forward.list': '{"currentPage":1,"pageSize":10}',
+  'project.system.pm-index.listRDField': '{}',
 };
 
 export function getCommandExample(commandName: string): string | undefined {

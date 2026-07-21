@@ -11,6 +11,7 @@
 | `yulong hr employee rosterList` | POST | `/hr/employee/rosterList` | 花名册列表查询 | |
 | `yulong hr employee count` | POST | `/hr/employee/count` | 员工统计（在职/试用/离职等） | |
 | `yulong hr employee detail` | POST | `/hr/employee/detail` | 员工详情 | |
+| `yulong hr employee getEnum` | POST | `/hr/employee/getEnum` | 获取人力枚举字典（统一字典接口） | |
 | `yulong hr employee customExportEmployee` | POST | `/hr/employee/customExportEmployee` | 自定义导出员工 Excel | |
 | `yulong hr employee template` | GET | `/hr/employee/template` | 下载花名册导入模板 | |
 | `yulong hr employee setEmployeeSortNum` | POST | `/hr/employee/setEmployeeSortNum` | 员工排序 | ✔ |
@@ -42,6 +43,7 @@
 |------|----------------------|------|
 | `rosterList` / `getContractList` / `getChangeList` / `getPerformanceList` / `exportPerformance` / `customExportEmployee` | `["people_manage","internal-recruitment"]` 任一 | |
 | `detail` | `["people_manage","dimission","internal-recruitment"]` 任一 | |
+| `getEnum` | `["all"]` | 任意已登录用户 |
 | `count` / `template` / `importData` | `["people_manage"]` | |
 | `addEmployee` | `["people_manage","people_add"]` 全部 | |
 | `updateEmployee` / `addOrUpdateContract` / `removeContract` / `addChangeRecord` / `updateChangeRecord` / `removeChangeRecord` / `importPerformance` / `removePerformance` / `updateAttachment` | `["people_manage","people_edit"]` 全部 | |
@@ -109,6 +111,32 @@ yulong hr employee detail --json '{"employeeId":15820335}' --format json
 - 返回员工全量字段（基本信息、工作信息、12 类附件列表等），是 `updateEmployee` / `updateAttachment` 前必做的回显查询。
 - 员工已离职时返回 `[4] 该员工未在职`；`hr.employeeChange.employee.detail` 返回结构相同，用于调动场景。
 
+### 枚举字典
+
+```bash
+yulong hr employee getEnum --format json
+```
+
+前端 HR 页面同款的**统一字典接口**，无参数，一次返回全部人力枚举。返回结构为 `data: { <枚举key>: [{value, label, sortNum, key}] }`，共 46 个 key（sex、educational、marital、workingCompany、contractingCompany、resignMethod 等），字典值形如 `sex0`-男、`workingCompany1`、`educational1`。
+
+花名册常用字段 → 枚举 key 对照：
+
+| 字段 | 枚举 key | 字段 | 枚举 key |
+|------|----------|------|----------|
+| `sex` | `sex` | `politicalAffiliation` | `political` |
+| `educational` | `educational` | `graduatingSchoolType` | `graduatingSchoolType` |
+| `maritalStatus` | `marital` | `type` | `personType` |
+| `fertilityStatus` | `fertility` | `contractingCompany` | `contractingCompany` |
+| `contractType` | `contractType` | `affiliatedCompany` | `workingCompany` |
+| `academicDegrees` | `academicDegrees` | `resignMethod` | `resignMethod` |
+| `domicileNature` | `domicile` | 合同 `contractCompany` | `employeeContractCompany` |
+| `learningType` | `learningType` | 合同 `contractType` | `employeeContractType` |
+
+用法：
+
+- **展示翻译**：向用户呈现 `detail` / `rosterList` 等结果时，先用该接口把字典码（如 `sex0`）翻译成 label（男）再展示。
+- **写前校验**：`addEmployee` / `updateEmployee` / `addOrUpdateContract` / `unapprovedLeave` 等写操作提交前，应用该接口校验字典取值是否合法（取对应 key 下的 `value` 集合比对），不要凭空编造 code。
+
 ### 合同 / 调动记录 / 绩效列表
 
 ```bash
@@ -164,7 +192,7 @@ yulong hr employee addEmployee --yes --format json --json '{
 
 必填（与前端表单校验一致）：`name`、`sex`、`idNumber`、`mobile`、`dingTalkPhone`、`affiliatedCompany`、`contractingCompany`、`deptNo`、`positionTypeId`、`positionSequenceId`、`positionId`、`actualPost`、`entryDate`、`isSm`、`isArchivesInCompany`、`isTrainingAgreement`。
 
-- 字典类字段（`sex`、`affiliatedCompany`、`contractingCompany`、`contractType` 等）取值是后端字典 code（如 `sex0`、`workingCompany1`），**从现有员工的 `hr.employee.detail` 返回中复制格式**，禁止编造未见过的取值；不确定时向用户展示已有样例确认。
+- 字典类字段（`sex`、`affiliatedCompany`、`contractingCompany`、`contractType` 等）取值是后端字典 code（如 `sex0`、`workingCompany1`），**优先用 `hr.employee.getEnum` 获取权威取值列表并校验**，禁止编造未见过的取值；`hr.employee.detail` 返回样例仅作参考，不确定时向用户展示已有样例确认。
 - 岗位三件套（`positionTypeId`/`positionSequenceId`/`positionId`）从 `hr.post.getPostTree` 获取。
 - 后端创建员工会同步钉钉；若返回 `[4] 获取钉钉token失败...`，是后端环境无法访问钉钉 API，并非参数错误，如实告知用户。
 - 成功返回 `data: true`，不回传 id；用 `rosterList` / `addressBook` 按姓名反查新员工的 `employeeId`。
@@ -304,7 +332,7 @@ yulong hr employee updateAttachment --yes --timeout 120 --json-file /tmp/att.jso
 - "查花名册 / 员工列表 / 研发部有多少员工" → `hr.employee.rosterList` / `hr.employee.count`（按部门筛选先 `hr.dept.getDeptTree` 取 deptNo）
 - "查 XXX 的详情 / 合同 / 调动记录 / 绩效" → `hr.employee.addressBook` 或 `rosterList` 查 employeeId → `hr.employee.detail` / `getContractList` / `getChangeList` / `getPerformanceList`
 - "导出员工名单 / 导出绩效" → `customExportEmployee` / `exportPerformance` → 解码保存文件
-- "新增员工 / 入职" → 收集必填字段（字典值参照已有员工 detail）→ 三步确认 → `addEmployee`
+- "新增员工 / 入职" → 收集必填字段（字典值用 `hr.employee.getEnum` 校验）→ 三步确认 → `addEmployee`
 - "修改员工信息" → `detail` 回显 → 三步确认 → `updateEmployee`（全量提交）
 - "给员工调部门" → `detail` 取现状 + `hr.dept.getDeptTree` 选新部门 → 三步确认 → `unapprovedTransfer`
 - "给员工办离职" → 收集离职时间/方式/原因 → 三步确认（警示不可恢复）→ `unapprovedLeave`
