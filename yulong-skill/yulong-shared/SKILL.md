@@ -103,6 +103,8 @@ Token 模式行为：
 | 登录、登出、登录状态、刷新权限 | [`yulong-auth`](../yulong-auth/SKILL.md) | 认证相关 |
 | 用户、角色、组织、权限、通讯录 | [`yulong-rbac`](../yulong-rbac/SKILL.md) | RBAC 相关 |
 | 部门、组织架构、业务线（查/增/改/删/隐藏/排序/导出） | [`yulong-rbac`](../yulong-rbac/SKILL.md) | 部门管理 |
+| 岗位、岗位类别、岗位序列（查/增/改/删/导出） | [`yulong-rbac`](../yulong-rbac/SKILL.md) | 岗位管理 |
+| 花名册、员工（查/增/改/排序/导入导出/合同/调动记录/绩效/附件/离职/转正） | [`yulong-rbac`](../yulong-rbac/SKILL.md) | 花名册管理 |
 | 商机、合同、收入清单、合作伙伴、CRM 字典 | [`yulong-project`](../yulong-project/SKILL.md) | 项目/经营相关 |
 | 通报、知识库、通用文件上传下载 | [`yulong-hr`](../yulong-hr/SKILL.md) | HR/办公相关 |
 
@@ -116,6 +118,16 @@ Token 模式行为：
 - `yulong hr.dept.hideDept` / `hr.dept.editDeptSort`：影响部门展示与顺序
 - `yulong hr.dept.export`：导出全量部门数据
 - `yulong hr.dept.addOrUpdateBusinessLine` / `hr.dept.removeBusinessLine`：业务线变更
+- `yulong hr.post.addPost` / `hr.post.updatePost`：新增/修改岗位，变更岗位体系
+- `yulong hr.post.removePost`：删除岗位
+- `yulong hr.employee.addEmployee` / `hr.employee.updateEmployee`：新增/编辑员工（编辑须先 detail 回显、全量提交）
+- `yulong hr.employee.unapprovedTransfer` / `hr.employee.unapprovedLeave`：无审核调动/离职，真实变更员工状态并留不可删记录
+- `yulong hr.employee.setEmployeeSortNum` / `hr.employee.importData` / `hr.employee.importPerformance`：排序与批量导入
+- `yulong hr.employee.addOrUpdateContract` / `hr.employee.removeContract`：合同增删改
+- `yulong hr.employee.addChangeRecord` / `hr.employee.updateChangeRecord` / `hr.employee.removeChangeRecord`：手工调动记录维护
+- `yulong hr.employee.removePerformance`：删除绩效
+- `yulong hr.employee.updateAttachment`：附件维护（12 类整体覆盖，未提交类别会被清空）
+- `yulong hr.regularRecord.oneClick`：一键转正
 
 执行危险操作必须执行三步确认：
 

@@ -160,6 +160,147 @@ export const COMMAND_PARAMS: Record<string, CommandParam[]> = {
     { name: 'deptType', type: 'number', desc: '部门类型：0-公司，1-部门，2-二级部门；与 deptNo 配套使用，须从 hr.dept.getDeptTree 节点原样传入' },
     { name: 'isContractType', type: 'number', desc: '是否是合同制：1-是 2-否' },
   ],
+  'hr.employee.rosterList': [
+    { name: 'pageNum', type: 'number', desc: '页码，从 1 开始（注意不是 currentPage）' },
+    { name: 'pageSize', type: 'number', desc: '每页条数，建议不超过 100' },
+    { name: 'name', type: 'string', desc: '姓名/ID 关键字' },
+    { name: 'deptNo', type: 'string', desc: '部门编号，从 hr.dept.getDeptTree 节点中获取' },
+    { name: 'deptType', type: 'number', desc: '部门类型：0-公司 1-部门 2-二级部门；与 deptNo 配套使用' },
+    { name: 'positionType', type: 'number', desc: '岗位类别 id，从 hr.post.getPostTree 获取' },
+    { name: 'positionSequence', type: 'number', desc: '岗位序列 id，从 hr.post.getPostTree 获取' },
+    { name: 'position', type: 'number[]', desc: '岗位名称 id 集合（多选），从 hr.post.getPostTree 获取' },
+    { name: 'contractingCompany', type: 'string[]', desc: '签约公司集合' },
+    { name: 'affiliatedCompany', type: 'string[]', desc: '工作公司集合' },
+    { name: 'startTime', type: 'string', desc: '入职时间开始（YYYY-MM-DD）' },
+    { name: 'endTime', type: 'string', desc: '入职时间结束（YYYY-MM-DD）' },
+    { name: 'sex', type: 'string', desc: '性别：男/女' },
+    { name: 'educational', type: 'string[]', desc: '学历集合：大专以下/专科/本科/研究生' },
+    { name: 'isContractType', type: 'number', desc: '是否是合同制：1-是 2-否' },
+  ],
+  'hr.employee.count': [
+    { name: 'name', type: 'string', desc: '统计维度与 hr.employee.rosterList 筛选参数一致，全部可选' },
+  ],
+  'hr.employee.detail': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填，从 hr.employee.rosterList 获取）' },
+  ],
+  'hr.employee.customExportEmployee': [
+    { name: 'customExportParamList', type: 'array', desc: '导出字段列表（必填），格式 [{"cnName":"姓名","enName":"name"}]' },
+    { name: 'name', type: 'string', desc: '筛选参数同 hr.employee.rosterList（pageNum/deptNo/startTime 等），可选' },
+  ],
+  'hr.employee.template': [],
+  'hr.employee.addEmployee': [
+    { name: 'name', type: 'string', desc: '姓名（必填）' },
+    { name: 'sex', type: 'string', desc: '性别：男/女（必填）' },
+    { name: 'idNumber', type: 'string', desc: '身份证号（必填）' },
+    { name: 'mobile', type: 'string', desc: '手机号（必填）' },
+    { name: 'dingTalkPhone', type: 'string', desc: '钉钉手机号（必填）' },
+    { name: 'affiliatedCompany', type: 'string', desc: '工作公司（必填）' },
+    { name: 'contractingCompany', type: 'string', desc: '签约公司（必填）' },
+    { name: 'deptNo', type: 'string', desc: '部门编号（必填，从 hr.dept.getDeptTree 获取）' },
+    { name: 'positionTypeId', type: 'number', desc: '岗位类别 id（必填，从 hr.post.getPostTree 获取）' },
+    { name: 'positionSequenceId', type: 'number', desc: '岗位序列 id（必填）' },
+    { name: 'positionId', type: 'number', desc: '岗位名称 id（必填）' },
+    { name: 'actualPost', type: 'string', desc: '实际岗位（必填）' },
+    { name: 'entryDate', type: 'string', desc: '入职日期 YYYY-MM-DD（必填）' },
+    { name: 'isSm', type: 'number', desc: '是否涉密：0-否 1-是（必填）' },
+    { name: 'isArchivesInCompany', type: 'number', desc: '档案是否在公司：0-否 1-是（必填）' },
+    { name: 'isTrainingAgreement', type: 'number', desc: '是否签订培训协议：0-否 1-是（必填）' },
+    { name: 'email', type: 'string', desc: '邮箱' },
+    { name: 'birthday', type: 'string', desc: '出生日期 YYYY-MM-DD' },
+    { name: 'contractType', type: 'string', desc: '合同类型（合同制/承包制/外包制）' },
+  ],
+  'hr.employee.updateEmployee': [
+    { name: 'employeeId', type: 'string', desc: '员工 id（必填，其余字段同 hr.employee.addEmployee）' },
+  ],
+  'hr.employee.setEmployeeSortNum': [
+    { name: 'list', type: 'array', desc: '排序列表（必填），格式 [{"employeeId":123,"sortNum":1}]，须覆盖同一列表范围内的全部员工' },
+  ],
+  'hr.employee.unapprovedTransfer': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+    { name: 'changeType', type: 'string', desc: '调动类型：1000-部门内调动 2000-跨部门调动（必填）' },
+    { name: 'oldDeptId', type: 'string', desc: '原部门编号（取员工详情中的 deptNo）' },
+    { name: 'deptNo', type: 'string', desc: '新部门编号（必填，从 hr.dept.getDeptTree 获取）' },
+    { name: 'positionTypeId', type: 'number', desc: '调整后岗位类别 id（必填）' },
+    { name: 'positionSequenceId', type: 'number', desc: '调整后岗位序列 id（必填）' },
+    { name: 'positionId', type: 'number', desc: '调整后岗位名称 id（必填）' },
+    { name: 'salaryChange', type: 'number', desc: '薪资是否调整：1-是 2-否（必填）' },
+    { name: 'newSalary', type: 'number', desc: '新薪资（salaryChange=1 时必填）' },
+    { name: 'changeDate', type: 'string', desc: '调动生效时间 YYYY-MM-DD（必填）' },
+    { name: 'changeReason', type: 'string', desc: '调动原因（必填）' },
+    { name: 'annexList', type: 'array', desc: '附件列表，格式 [{"fileId":"...","name":"...","url":"..."}]，fileId 来自 hr.file.upload.return.attachment' },
+  ],
+  'hr.employee.unapprovedLeave': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+    { name: 'resignationTime', type: 'string', desc: '离职时间（止薪时间）YYYY-MM-DD（必填）' },
+    { name: 'resignMethod', type: 'string', desc: '离职方式（必填，字典 RESIGNMETHOD）' },
+    { name: 'resignReason', type: 'string', desc: '离职原因（必填）' },
+    { name: 'appendix', type: 'array', desc: '辞职报告附件，格式 [{"fileId":"...","name":"...","url":"..."}]' },
+  ],
+  'hr.employee.importData': [
+    { name: '--file', type: 'string', desc: '要导入的本地 Excel 文件路径（必填，模板可用 hr.employee.template 下载）' },
+  ],
+  'hr.employee.importPerformance': [
+    { name: '--file', type: 'string', desc: '要导入的本地 Excel 文件路径（必填）' },
+    { name: 'employeeId', type: 'string', desc: '员工 id（必填，query 参数）' },
+  ],
+  'hr.employee.getContractList': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+  ],
+  'hr.employee.addOrUpdateContract': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+    { name: 'contractId', type: 'number', desc: '合同 id；不传表示新增，传了表示编辑' },
+    { name: 'contractCompany', type: 'string', desc: '合同公司（必填，字典 EMPLOYEECONTRACTCOMPANY）' },
+    { name: 'contractType', type: 'string', desc: '合同类型（必填，字典 EMPLOYEECONTRACTYPE）' },
+    { name: 'startTime', type: 'string', desc: '合同开始日期 YYYY-MM-DD' },
+    { name: 'endTime', type: 'string', desc: '合同结束日期 YYYY-MM-DD' },
+    { name: 'signCount', type: 'number', desc: '签订次数' },
+    { name: 'contractSerial', type: 'string', desc: '合同编号' },
+    { name: 'filePathList', type: 'array', desc: '合同附件，格式 [{"fileId":"...","name":"...","url":"..."}]' },
+  ],
+  'hr.employee.removeContract': [
+    { name: 'contractId', type: 'number', desc: '合同 id（必填，从 hr.employee.getContractList 获取）' },
+  ],
+  'hr.employee.getChangeList': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+  ],
+  'hr.employee.addChangeRecord': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+    { name: 'changeType', type: 'string', desc: '调动类型：1000-部门内 2000-跨部门 3000-跨公司' },
+    { name: 'changeDate', type: 'string', desc: '变更日期 YYYY-MM-DD' },
+    { name: 'originDeptName', type: 'string', desc: '原部门/单位名称（必填）' },
+    { name: 'originPost', type: 'string', desc: '原岗位' },
+    { name: 'currentDeptNo', type: 'string', desc: '调动后部门编码（必填，从 hr.dept.getDeptTree 获取）' },
+    { name: 'currentDeptName', type: 'string', desc: '调动后部门名称' },
+    { name: 'currentPostNameId', type: 'number', desc: '调动后岗位名称 id' },
+    { name: 'currentPost', type: 'string', desc: '调动后岗位名称' },
+    { name: 'annexList', type: 'array', desc: '调动公文附件，格式 [{"fileId":"...","name":"...","url":"..."}]' },
+  ],
+  'hr.employee.updateChangeRecord': [
+    { name: 'recordId', type: 'number', desc: '调动记录 id（必填，从 hr.employee.getChangeList 获取），其余字段同 hr.employee.addChangeRecord' },
+  ],
+  'hr.employee.removeChangeRecord': [
+    { name: 'recordId', type: 'number', desc: '调动记录 id（必填）' },
+  ],
+  'hr.employee.getPerformanceList': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+  ],
+  'hr.employee.exportPerformance': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+  ],
+  'hr.employee.removePerformance': [
+    { name: 'id', type: 'number', desc: '绩效记录 id（必填，从 hr.employee.getPerformanceList 获取）' },
+  ],
+  'hr.employee.updateAttachment': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+    { name: 'idNumberAttachmentList', type: 'array', desc: '身份证附件，格式 [{fileId,name,url}]。注意：后端按类别整体覆盖，未提交的类别会被清空！提交前必须先 hr.employee.detail 拉取全部 12 类附件现状，在目标类别上增删后整体提交' },
+    { name: 'healthExamReports', type: 'array', desc: '体检报告附件；其余类别：idPhoto/academicDegrees(Chsi)/educational(Chsi)/employmentSeparationCertificate/residenceBooklet/bankCard/vocationalCertificate/dischargeCertificate + List 后缀' },
+  ],
+  'hr.employeeChange.employee.detail': [
+    { name: 'employeeId', type: 'number', desc: '员工 id（必填）' },
+  ],
+  'hr.regularRecord.oneClick': [
+    { name: 'regularId', type: 'string', desc: '待转正记录 id（必填，query 参数，从转正管理列表获取）' },
+  ],
   'hr.dept.getDeptTree': [
     { name: 'isAll', type: 'number', desc: '传 1 表示按通讯录数据权限拉取全部可见部门' },
     { name: 'name', type: 'string', desc: '按部门名称模糊搜索' },
@@ -256,6 +397,39 @@ export const COMMAND_PARAMS: Record<string, CommandParam[]> = {
     { name: 'deptId', type: 'string', desc: '按部门 id 过滤' },
     { name: 'companyId', type: 'string', desc: '按公司 id 过滤' },
   ],
+  'hr.post.getPostTree': [
+    { name: 'name', type: 'string', desc: '按岗位名称模糊搜索（类别/序列/岗位均可命中）' },
+  ],
+  'hr.post.getPostByType': [
+    { name: 'type', type: 'string', desc: '类型：1-岗位类别 2-岗位序列 3-岗位（必填）' },
+    { name: 'typeId', type: 'number', desc: '岗位类别 id；type=2/3 时必传，取 type=1 返回的 id' },
+    { name: 'sequenceId', type: 'number', desc: '岗位序列 id；type=3 时必传，取 type=2 返回的 id' },
+    { name: 'name', type: 'string', desc: '按名称模糊搜索' },
+  ],
+  'hr.post.getDetail': [
+    { name: 'positionId', type: 'number', desc: '岗位节点 id（必填，从 hr.post.getPostTree 获取）' },
+  ],
+  'hr.post.getPostUserNum': [
+    { name: 'positionId', type: 'number', desc: '岗位节点 id（必填）；返回在职绑定人数，删除前必查' },
+  ],
+  'hr.post.addPost': [
+    { name: 'postName', type: 'string', desc: '名称（必填，最长 30 字）' },
+    { name: 'type', type: 'string', desc: '类型：1-类别 2-序列 3-岗位（必填）' },
+    { name: 'typeId', type: 'number', desc: '所属岗位类别 id；type=2/3 时必传' },
+    { name: 'sequenceId', type: 'number', desc: '所属岗位序列 id；type=3 时必传' },
+    { name: 'remarks', type: 'string', desc: '职责描述（最长 200 字）' },
+  ],
+  'hr.post.updatePost': [
+    { name: 'positionId', type: 'number', desc: '岗位节点 id（必填，从 hr.post.getPostTree 获取）' },
+    { name: 'postName', type: 'string', desc: '名称（必填，最长 30 字）' },
+    { name: 'remarks', type: 'string', desc: '职责描述（最长 200 字）' },
+  ],
+  'hr.post.removePost': [
+    { name: 'positionId', type: 'number', desc: '岗位节点 id（必填）；删除前先用 hr.post.getPostUserNum 确认人数为 0' },
+  ],
+  'hr.post.exportPost': [
+    { name: 'name', type: 'string', desc: '按岗位名称模糊搜索（与 hr.post.getPostTree 参数一致）' },
+  ],
   'project.origin-contract.forward.list': [
     { name: 'currentPage', type: 'number', desc: '页码，从 1 开始' },
     { name: 'pageSize', type: 'number', desc: '每页条数，建议不超过 100' },
@@ -290,6 +464,8 @@ export function getCommandParams(commandName: string): CommandParam[] | undefine
  */
 const COMMAND_EXAMPLES: Record<string, string> = {
   'hr.knowledge.addKnowledge': '{"title":"知识库标题","type":12,"content":"正文内容","scopeOrgId":"1793907438427492353"}',
+  'hr.employee.rosterList': '{"pageNum":1,"pageSize":10}',
+  'hr.employee.detail': '{"employeeId":123}',
 };
 
 export function getCommandExample(commandName: string): string | undefined {

@@ -10,10 +10,16 @@ import type { CommandContext } from '../core/types';
 /**
  * 判断命令是否为文件上传类命令
  *
- * 目前仅 hr.file.upload 与 hr.file.upload.return.attachment 需要 multipart/form-data 上传
+ * - hr.file.upload / hr.file.upload.return.attachment：通用上传
+ * - hr.employee.importData：花名册一键导入（前端 useImport.ts，FormData 字段名 file）
+ * - hr.employee.importPerformance：绩效导入（前端 postHrEmployeeImportPerformance，
+ *   employeeId 走 query，文件走 FormData 字段名 file）
  */
 function isFileUploadCommand(command: string): boolean {
-  return command === 'hr.file.upload' || command === 'hr.file.upload.return.attachment';
+  return command === 'hr.file.upload'
+    || command === 'hr.file.upload.return.attachment'
+    || command === 'hr.employee.importData'
+    || command === 'hr.employee.importPerformance';
 }
 
 /**
