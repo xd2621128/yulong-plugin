@@ -28,6 +28,7 @@ const CLI_SCHEMA_SQL = `
     needs_resource_mark INTEGER DEFAULT 1,
     resource_mark TEXT,
     description TEXT,
+    param_location TEXT DEFAULT 'body',
     created_at TEXT,
     UNIQUE(command_name)
   );
@@ -120,6 +121,11 @@ export function closeDb(): void {
 export function initSchema(): void {
   const database = getDb();
   database.exec(CLI_SCHEMA_SQL);
+  // 旧 DB 升级：CREATE TABLE IF NOT EXISTS 不会给已存在的表补列，需手动 ALTER
+  const columns = database.query('PRAGMA table_info(api_permissions)').all() as Array<{ name: string }>;
+  if (!columns.some(c => c.name === 'param_location')) {
+    database.run("ALTER TABLE api_permissions ADD COLUMN param_location TEXT DEFAULT 'body'");
+  }
 }
 
 export function getUserPermissions(userid: string): UserPermission | null {
@@ -170,8 +176,8 @@ export function upsertApiPermission(permission: Omit<ApiPermission, 'id'>): void
   const now = new Date().toISOString();
   database.run(
     `INSERT INTO api_permissions
-     (module, resource, action, command_name, method, path, required_permissions, match_mode, is_dangerous, needs_resource_mark, resource_mark, description, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     (module, resource, action, command_name, method, path, required_permissions, match_mode, is_dangerous, needs_resource_mark, resource_mark, description, param_location, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(command_name) DO UPDATE SET
        module = excluded.module,
        resource = excluded.resource,
@@ -184,7 +190,8 @@ export function upsertApiPermission(permission: Omit<ApiPermission, 'id'>): void
        is_dangerous = excluded.is_dangerous,
        needs_resource_mark = excluded.needs_resource_mark,
        resource_mark = excluded.resource_mark,
-       description = excluded.description`,
+       description = excluded.description,
+       param_location = excluded.param_location`,
     [
       permission.module,
       permission.resource,
@@ -198,6 +205,7 @@ export function upsertApiPermission(permission: Omit<ApiPermission, 'id'>): void
       permission.needs_resource_mark,
       permission.resource_mark || null,
       permission.description || null,
+      permission.param_location || 'body',
       now,
     ],
   );

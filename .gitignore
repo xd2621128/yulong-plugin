@@ -27,6 +27,7 @@ secrets.local.json
 .vscode/
 .claude/settings.local.json
 .sisyphus/
+.codefree/
 
 # 日志
 *.log

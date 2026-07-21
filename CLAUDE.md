@@ -103,7 +103,7 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 
 `commands/business.ts` 处理文件上传类命令：
 
-- 目前仅 `hr.file.upload` 与 `hr.file.upload.return.attachment` 需要 multipart/form-data 上传。
+- `hr.file.upload`、`hr.file.upload.return.attachment`（通用上传）以及 `hr.employee.importData`、`hr.employee.importPerformance`（花名册/绩效导入）需要 multipart/form-data 上传；`importPerformance` 的 `employeeId` 走 query（`param_location = query`）。
 - 通过 `--file <path>` 指定本地文件路径，`buildFileUploadBody()` 构造 `FormData`，字段名为 `file`。
 - 新增文件上传命令时，需在 `isFileUploadCommand()` 中登记，并补充 `--help` 参数说明。
 
@@ -122,7 +122,7 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 - 所有 `yulong` 调用必须加 `--format json`。
 - 禁止让 Skill 直接用 curl/HTTP/浏览器访问御龙后端；所有请求必须经过 CLI。
 - 禁止编造用户 ID、组织 ID、部门 ID 等标识符；字段值必须先查字典确认。
-- 危险操作（目前 `hr.knowledge.addKnowledge`）必须先展示摘要、等用户确认、再加 `--yes` 执行。
+- 危险操作（`hr.knowledge.addKnowledge`、部门管理写操作 `hr.dept.add/edit/addSubDept/editSubDept/del/hideDept/editDeptSort/export/addOrUpdateBusinessLine/removeBusinessLine`、岗位管理写操作 `hr.post.addPost/updatePost/removePost`、花名册写操作 `hr.employee.addEmployee/updateEmployee/unapprovedTransfer/unapprovedLeave/setEmployeeSortNum/importData/importPerformance/addOrUpdateContract/removeContract/addChangeRecord/updateChangeRecord/removeChangeRecord/removePerformance/updateAttachment`、`hr.regularRecord.oneClick`）必须先展示摘要、等用户确认、再加 `--yes` 执行。
 - Token 模式下禁止执行 `auth login / logout / switch-org`；遇到 `auth_required` 应向上游报告 token 失效。
 - 意图路由有严格规则：如“收入清单”未明确拆分前/后必须追问；“XX 大区”优先按部门字典查，找不到必须追问，不能自动当作“区域”。
 

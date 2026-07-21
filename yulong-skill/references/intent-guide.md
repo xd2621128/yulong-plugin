@@ -14,7 +14,7 @@
 | 用户意图 | 使用 Skill | 主要命令 |
 |---|---|---|
 | 登录、登出、登录状态、刷新权限 | [`yulong-auth`](../yulong-auth/SKILL.md) | `yulong auth login/logout/status/refresh-permissions` |
-| 用户、角色、组织、权限 | [`yulong-rbac`](../yulong-rbac/SKILL.md) | `yulong rbac user userPage` |
+| 用户、角色、组织、权限、通讯录、部门管理、岗位管理、花名册（员工查询/合同/调动/绩效/离职/转正/导入导出） | [`yulong-rbac`](../yulong-rbac/SKILL.md) | `yulong rbac user userPage`、`yulong hr dept getDeptTree`、`yulong hr employee addressBook`、`yulong hr dept list/detail/add/edit/del`、`yulong hr post getPostTree/addPost/updatePost/removePost`、`yulong hr employee rosterList/detail/addEmployee/updateEmployee/unapprovedTransfer/unapprovedLeave` |
 | 商机、合同、收入清单、合作伙伴 | [`yulong-project`](../yulong-project/SKILL.md) | `yulong project business list`、`yulong project origin-contract forward list`、`yulong project edaLabel beforeSplit/afterSplit`、`yulong project partner page` |
 | 通报、知识库、通用文件 | [`yulong-hr`](../yulong-hr/SKILL.md) | `yulong hr article findReportPage/detail`、`yulong hr knowledge addKnowledge`、`yulong hr file download` |
 | 不确定该用哪个 / 认证失败 / 配置问题 | [`yulong-shared`](../yulong-shared/SKILL.md) | 通用规则与错误恢复 |
@@ -51,11 +51,22 @@
 - "通告" → 明确告知仅支持通报，不支持通告。
 - "新闻/公告/精选/研发运营速递" → 明确告知仅支持通报，其他类型暂不提供。
 
+### "查人" vs "查花名册"
+
+- "某人在哪个部门 / 联系方式" → 通讯录 `hr.employee.addressBook`。
+- "花名册 / 员工名单 / 在职人数 / 员工统计" → `hr.employee.rosterList` / `hr.employee.count`，受 `people_manage` 数据权限约束，返回 0 时先说明可能是无数据权限，不要当作接口异常。
+
+### "调动"是真实变更还是补录记录
+
+- 真实变更员工部门 → `hr.employee.unapprovedTransfer`（生成不可删的系统调动记录）。
+- 只补录一条历史调动记录 → `hr.employee.addChangeRecord`。
+- 用户没说明时必须追问。
+
 ## 详细参考
 
 - [`yulong-shared/SKILL.md`](../yulong-shared/SKILL.md) — 共享规则
 - [`yulong-auth/SKILL.md`](../yulong-auth/SKILL.md) — 认证
-- [`yulong-rbac/SKILL.md`](../yulong-rbac/SKILL.md) — 用户/角色/组织/权限
+- [`yulong-rbac/SKILL.md`](../yulong-rbac/SKILL.md) — 用户/角色/组织/权限/通讯录
 - [`yulong-project/SKILL.md`](../yulong-project/SKILL.md) — 商机/合同/收入/合作伙伴
 - [`yulong-hr/SKILL.md`](../yulong-hr/SKILL.md) — 通报/知识库/文件
 - [references/products/](./) — 各产品命令详细参考
