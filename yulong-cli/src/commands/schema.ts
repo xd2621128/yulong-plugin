@@ -1,6 +1,6 @@
 import { listApiPermissions } from '../core/db';
 import { ErrorType } from '../core/envelope';
-import { getCommandParams } from '../commands/command-params';
+import { getCommandExample, getCommandParams } from '../commands/command-params';
 import { filterOpenPermissions } from '../auth/permission-filter';
 import type { CommandContext } from '../core/types';
 
@@ -43,11 +43,8 @@ export async function schemaCommand(context: CommandContext): Promise<unknown> {
     const commandName = p.command_name;
     const needsBody = ['POST', 'PUT', 'PATCH'].includes(p.method);
 
-    // 已知命令给出具体参数示例，未知命令用占位符
-    const PARAM_EXAMPLES: Record<string, string> = {
-      'rbac.user.userPage': '{"currentPage":1,"pageSize":10}',
-    };
-    const paramsJson = PARAM_EXAMPLES[p.command_name] || '{"...":"..."}';
+    // 已知命令给出真实参数示例（与 --help 共用 COMMAND_EXAMPLES），未知命令用占位符
+    const paramsJson = getCommandExample(p.command_name) || '{"...":"..."}';
 
     // 路径参数示例占位符：优先取 command-params 中的第一个参数名，否则默认 <id>
     const hasPathParam = p.path?.includes('${param0}') ?? false;
