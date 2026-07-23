@@ -24,7 +24,9 @@ bun test src/user-resolver.test.ts   # 运行单个测试文件
 bun run dev -- schema    # 开发模式运行：bun run src/index.ts schema
 bun run build:mac        # 编译 macOS ARM64 二进制 -> yulong-mac
 bun run build:linux      # 编译 Linux x64 二进制 -> yulong
-bun run build.ts --target=bun-darwin-arm64   # 自定义目标
+bun run build:mac:token  # 编译 Token 模式 macOS 二进制 -> yulong-mac-token
+bun run build:linux:token # 编译 Token 模式 Linux 二进制 -> yulong-token
+bun run build.ts --target=bun-darwin-arm64   # 自定义目标（支持 --mode=local|token、--outfile=<name>）
 ```
 
 打包部署包到 `yulong-plugin/dist/` 是手动步骤（二进制、config.json、data/yulong.db、yulong-skill 一起复制后 zip）。
@@ -34,6 +36,10 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 - 配置优先级：`YULONG_*` 环境变量 > `config.local.json` > `config.json` > 硬编码默认值。
   - `.env` / `.env.{env}` / `.env.{env}.local` 在开发模式下由 Bun 自动注入为环境变量；编译后的二进制会手动加载这些文件，再合并到 `process.env`。
   - 因此 `.env` 中的值最终通过 `YULONG_*` 环境变量生效，与直接设置环境变量优先级相同。
+  - `mode`（`local` / `token`）例外，只有两档来源：`YULONG_MODE` 环境变量 > 编译期注入（`bun run build.ts --mode=token` 通过 `bun build --define YULONG_BUILD_MODE` 注入）。config 文件中的 `mode` 字段 CLI 不读取（`yulong-skill/config.json` 的 `mode` 仅供 agent 参考）；启动日志会输出当前认证模式，便于定位。
+- 两个 `config.json` 的分工（不要混放字段）：
+  - `yulong-cli/config.json`：CLI 开发配置（`baseUrl` / `timeout` / `dbPath` / `userDbPath` / `logLevel`），也是部署包顶层 `config.json`（安装时复制到 CLI home）的来源。
+  - `yulong-skill/config.json`：仅 Skill 专用字段（`cliPath`、`mode`），由 agent 阅读 SKILL.md 时参考；CLI 从不读取此文件。
 - 不要提交 `config.local.json`、`secrets.local.json`、`.env.*.local`、`tokens.local.json`、`.db` 文件。
 
 ## 高层架构
@@ -45,10 +51,10 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 1. 用 Node `util.parseArgs` 解析全局选项（`--token`、`--json`、`--format`、`--fields` 等）。
 2. 特殊命令 `auth` / `schema` 直接分发到 `auth.ts` / `schema.ts`。
 3. 业务命令通过 `resolveCommandAndArgs()` 在 `api_permissions` 表中做最长前缀匹配，得到命令名和路径参数。
-4. 普通模式调用 `resolveUser()` 读取当前登录用户；Token 模式跳过此步。
+4. 普通模式调用 `resolveUser()` 读取当前登录用户；Token 模式（`--token` 或配置 `mode=token`）跳过此步。
    - macOS 默认读取 `~/Library/Application Support/御小龙/yuxiaolong.db` 中 `auth_sessions.id = 'current'` 的 `user_info`。
    - 可通过 `YULONG_USER_DB_PATH` / `config.userDbPath` 显式指定御小龙数据库路径（非 macOS 或测试时使用）。
-   - Skill 可通过 `config.json` / `config.local.json` 中的 `mode` 字段控制默认认证模式：`"local"`（默认）或 `"token"`；若 Skill 上下文/网关注入了 `accessToken`，则优先使用 Token 模式。
+   - CLI 读取 `mode` 配置决定默认认证模式（优先级见上文"配置与环境"）；Skill 文档中的 `mode` 字段约定由 CLI 在运行时强制落地。若 Skill 上下文/网关注入了 `accessToken`（`--token`），优先使用 Token 模式。
 5. 最终进入 `commands/business.ts`。
 
 ### 命令注册表：`api_permissions`
@@ -67,8 +73,8 @@ bun run build.ts --target=bun-darwin-arm64   # 自定义目标
 
 | 模式 | 触发 | 行为 |
 |------|------|------|
-| **本地模式** | 不指定 `--token` | macOS 默认从御小龙 `yuxiaolong.db` 读取用户，用 `tokens.local.json` 存取 token，自动 refresh/re-login，权限缓存到 `user_permissions` |
-| **Token 模式** | `--token <accessToken>` | 不读本地用户、不写 token 文件；每次启动用该 token 拉取权限做预检；`RequestConfig.skipAuthRetry = true`；`auth login/logout/switch-org` 不可用 |
+| **本地模式** | 不指定 `--token` 且配置 `mode=local`（默认） | macOS 默认从御小龙 `yuxiaolong.db` 读取用户，用 `tokens.local.json` 存取 token，自动 refresh/re-login，权限缓存到 `user_permissions` |
+| **Token 模式** | `--token <accessToken>`，或 `mode=token`（`YULONG_MODE` 环境变量 / 编译期注入） | 不读本地用户、不写 token 文件；每次启动用该 token 拉取权限做预检；`RequestConfig.skipAuthRetry = true`；`auth login/logout/switch-org` 不可用；`mode=token` 但未提供 `--token` 时，业务命令与 `auth refresh-permissions` 抛 `auth_required` |
 
 ### 认证与权限
 
