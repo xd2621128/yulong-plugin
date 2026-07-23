@@ -1,6 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+/** 认证模式：local = 本地模式（读御小龙用户、CLI 管理 token）；token = Token 模式（外部注入 token） */
+export type AuthMode = 'local' | 'token';
+
 export interface Config {
   baseUrl: string;
   timeout: number;
@@ -9,6 +12,8 @@ export interface Config {
   /** 御小龙身份数据库路径，仅用于覆盖默认路径 */
   userDbPath: string;
   logLevel: string;
+  /** 认证模式（默认 local） */
+  mode: AuthMode;
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -17,7 +22,29 @@ const DEFAULT_CONFIG: Config = {
   dbPath: '',
   userDbPath: '',
   logLevel: 'info',
+  mode: 'local',
 };
+
+/**
+ * 编译期注入的认证模式（bun build --define YULONG_BUILD_MODE='"token"'）
+ *
+ * 开发模式（bun run src/index.ts）和未注入的二进制中该标识符未定义，
+ * 通过 typeof 守卫安全回退。
+ */
+declare const YULONG_BUILD_MODE: string | undefined;
+
+function getBuildMode(): AuthMode | undefined {
+  if (typeof YULONG_BUILD_MODE === 'undefined') {
+    return undefined;
+  }
+  return YULONG_BUILD_MODE === 'token' || YULONG_BUILD_MODE === 'local'
+    ? YULONG_BUILD_MODE
+    : undefined;
+}
+
+function parseMode(value: string | undefined): AuthMode | undefined {
+  return value === 'token' || value === 'local' ? value : undefined;
+}
 
 function getBinaryDir(): string {
   // 编译为二进制后，process.execPath 是二进制自身路径；
@@ -244,6 +271,10 @@ function parseTimeout(value: string | undefined): number | undefined {
  * 2. config.local.json
  * 3. config.json
  * 4. 硬编码默认值
+ *
+ * 例外：`mode` 不走配置文件，只有两档来源——
+ * `YULONG_MODE` 环境变量 > 编译期注入（bun build --define YULONG_BUILD_MODE）> 'local'。
+ * 刻意缩短链路便于定位问题；config.json / config.local.json 中的 mode 字段会被忽略。
  */
 export function loadConfig(): Config {
   const configJson = readJsonConfig('config.json');
@@ -279,6 +310,11 @@ export function loadConfig(): Config {
       || configLocal.logLevel
       || configJson.logLevel
       || DEFAULT_CONFIG.logLevel,
+
+    mode:
+      parseMode(process.env.YULONG_MODE)
+      || getBuildMode()
+      || DEFAULT_CONFIG.mode,
   };
 }
 

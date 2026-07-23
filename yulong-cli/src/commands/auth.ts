@@ -7,9 +7,17 @@ import { ErrorType } from '../core/envelope';
 import * as logger from '../core/logger';
 import type { CommandContext } from '../core/types';
 
+/**
+ * 有效 Token 模式判定：运行时传入 --token，或配置 mode=token（含编译期注入默认值）
+ */
+function isTokenMode(context: CommandContext): boolean {
+  return !!context.options.token || loadConfig().mode === 'token';
+}
+
 function assertNotTokenMode(subCommand: string, context: CommandContext): void {
-  if (context.options.token) {
-    const err = new Error(`当前使用 --token 模式，auth ${subCommand} 不可用（仍可使用 auth status / refresh-permissions）`);
+  if (isTokenMode(context)) {
+    const source = context.options.token ? '--token' : 'config mode=token';
+    const err = new Error(`当前为 Token 模式（${source}），auth ${subCommand} 不可用（仍可使用 auth status / refresh-permissions）`);
     err.name = ErrorType.VALIDATION_ERROR;
     throw err;
   }
@@ -65,6 +73,13 @@ async function status(context: CommandContext): Promise<unknown> {
     };
   }
 
+  if (loadConfig().mode === 'token') {
+    return {
+      status: 'token_mode',
+      message: '当前 CLI 配置为 Token 模式（config mode=token），等待上游注入 token',
+    };
+  }
+
   const tokens = loadTokens();
   if (!tokens) {
     return {
@@ -96,6 +111,12 @@ async function refreshPermissions(context: CommandContext): Promise<unknown> {
       mode: 'token',
       permissionCount: permissions.length,
     };
+  }
+
+  if (loadConfig().mode === 'token') {
+    const err = new Error('当前 CLI 配置为 Token 模式，请通过 --token 提供 accessToken');
+    err.name = ErrorType.AUTH_REQUIRED;
+    throw err;
   }
 
   const loginName = await resolveUser(context.options);

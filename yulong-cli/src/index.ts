@@ -450,7 +450,7 @@ async function main(): Promise<void> {
   const config = loadConfig();
   configureLogger(options, config.logLevel);
 
-  info(`启动 yulong-cli，参数: ${JSON.stringify(positionals)}`);
+  info(`启动 yulong-cli，参数: ${JSON.stringify(positionals)}，认证模式: ${config.mode}`);
 
   try {
     // 特殊命令
@@ -489,8 +489,9 @@ async function main(): Promise<void> {
       args: pathArgs,
     };
 
-    // Token 模式下不读取本地用户；普通模式从约定数据库读取最新用户
-    const userId = options.token ? undefined : await resolveUser(options);
+    // Token 模式（--token 或配置 mode=token）下不读取本地用户；普通模式从约定数据库读取最新用户
+    const isTokenMode = !!options.token || config.mode === 'token';
+    const userId = isTokenMode ? undefined : await resolveUser(options);
     if (userId) {
       info(`当前用户: ${userId}`);
     }
@@ -498,7 +499,7 @@ async function main(): Promise<void> {
     if (options.dryRun) {
       const result = {
         command,
-        user: options.token ? 'token-mode' : userId,
+        user: isTokenMode ? 'token-mode' : userId,
         params,
         baseUrl: getBaseUrl(config),
         resourceMark: options.resourceMark || '使用 api_permissions.resource_mark',

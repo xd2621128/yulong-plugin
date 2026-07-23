@@ -1,6 +1,7 @@
 import { getApiPermission } from '../core/db';
 import { checkPermission, hasToken, refreshUserPermissions, fetchUserPermissions } from '../auth/permission-guard';
 import { buildRequest, request } from '../core/api-client';
+import { loadConfig } from '../core/config';
 import { ErrorType } from '../core/envelope';
 import * as logger from '../core/logger';
 import * as fs from 'fs';
@@ -64,7 +65,14 @@ export async function businessCommand(
   params: Record<string, unknown>,
 ): Promise<unknown> {
   const token = context.options.token;
-  const isTokenMode = !!token;
+  const isTokenMode = !!token || loadConfig().mode === 'token';
+
+  if (isTokenMode && !token) {
+    // 配置为 Token 模式（含编译期注入）但未注入 token
+    const err = new Error('当前 CLI 配置为 Token 模式，请通过 --token 提供 accessToken');
+    err.name = ErrorType.AUTH_REQUIRED;
+    throw err;
+  }
 
   if (!isTokenMode) {
     if (!hasToken()) {
@@ -96,7 +104,8 @@ export async function businessCommand(
   let checkResult: { passed: boolean; userHas: string[] };
 
   if (isTokenMode) {
-    const userPermissions = await fetchUserPermissions(token);
+    // 入口处的守卫已保证 Token 模式下 token 必然存在
+    const userPermissions = await fetchUserPermissions(token!);
     checkResult = checkPermissionsLocally(requiredPermissions, permission.match_mode, userPermissions);
   }
   else {

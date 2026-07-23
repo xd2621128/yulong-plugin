@@ -224,4 +224,76 @@ describe('Token mode', () => {
       expect(count.c).toBe(0);
     });
   });
+
+  describe('configured token mode (YULONG_MODE=token)', () => {
+    let originalMode: string | undefined;
+
+    beforeEach(() => {
+      originalMode = process.env.YULONG_MODE;
+      process.env.YULONG_MODE = 'token';
+    });
+
+    afterEach(() => {
+      if (originalMode !== undefined) {
+        process.env.YULONG_MODE = originalMode;
+      }
+      else {
+        delete process.env.YULONG_MODE;
+      }
+    });
+
+    it('auth login is prohibited without --token', async () => {
+      await expect(authHandle('login', contextFor())).rejects.toThrow('auth login 不可用');
+      await expect(authHandle('login', contextFor())).rejects.toThrow('config mode=token');
+    });
+
+    it('auth logout is prohibited without --token', async () => {
+      await expect(authHandle('logout', contextFor())).rejects.toThrow('auth logout 不可用');
+    });
+
+    it('auth switch-org is prohibited without --token', async () => {
+      const ctx = contextFor({ json: '{"orgId":"o1"}' });
+      await expect(authHandle('switch-org', ctx)).rejects.toThrow('auth switch-org 不可用');
+    });
+
+    it('auth status returns token_mode without --token', async () => {
+      const result = await authHandle('status', contextFor());
+      expect(result).toMatchObject({ status: 'token_mode' });
+    });
+
+    it('auth refresh-permissions without --token throws auth_required', async () => {
+      await expect(authHandle('refresh-permissions', contextFor())).rejects.toThrow('请通过 --token 提供 accessToken');
+      try {
+        await authHandle('refresh-permissions', contextFor());
+      }
+      catch (err) {
+        expect((err as Error).name).toBe(ErrorType.AUTH_REQUIRED);
+      }
+    });
+
+    it('businessCommand without --token throws auth_required', async () => {
+      await expect(businessCommand(contextFor(), undefined, {})).rejects.toThrow('请通过 --token 提供 accessToken');
+      try {
+        await businessCommand(contextFor(), undefined, {});
+      }
+      catch (err) {
+        expect((err as Error).name).toBe(ErrorType.AUTH_REQUIRED);
+      }
+    });
+
+    it('businessCommand with --token executes normally', async () => {
+      restoreFetch = mockFetch((url) => {
+        if (url.includes('/rbac/resource/grantedResources')) {
+          return new Response(JSON.stringify({ code: 0, data: ['all'] }), { status: 200 });
+        }
+        if (url.includes('/test/echo')) {
+          return new Response(JSON.stringify({ code: 0, data: { echoed: true } }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ code: -1 }), { status: 200 });
+      });
+
+      const result = await businessCommand(contextFor({ token: 'my-token' }), undefined, {});
+      expect(result).toEqual({ echoed: true });
+    });
+  });
 });

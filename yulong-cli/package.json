@@ -12,6 +12,8 @@
     "build": "bun run build.ts",
     "build:linux": "bun build --compile --target=bun-linux-x64 src/index.ts --outfile yulong",
     "build:mac": "bun build --compile --target=bun-darwin-arm64 src/index.ts --outfile yulong-mac",
+    "build:linux:token": "bun run build.ts --target=bun-linux-x64 --mode=token --outfile=yulong-token",
+    "build:mac:token": "bun run build.ts --target=bun-darwin-arm64 --mode=token --outfile=yulong-mac-token",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
